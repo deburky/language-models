@@ -1,3 +1,5 @@
+"""run_pipeline.py"""
+
 import subprocess
 import sys
 
@@ -31,4 +33,4 @@ for script, args in scripts_with_args:
         console.print(f"[red]Error while running {script}, stopping pipeline.[/red]")
         sys.exit(1)
 
-console.print("\n✅ [bold green]Pipeline completed successfully![/bold green] 🎉")
+console.print("\n✅ [bold green]Pipeline ran successfully![/bold green] 🎉")

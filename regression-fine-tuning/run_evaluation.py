@@ -2,6 +2,7 @@
 
 import os
 import time
+import re
 
 import numpy as np
 import pandas as pd
@@ -12,7 +13,7 @@ from loguru import logger
 from rich.console import Console
 from rich.table import Table
 from sentence_transformers import SentenceTransformer
-from sklearn.metrics import mean_absolute_error, root_mean_squared_error
+from sklearn.metrics import root_mean_squared_error, mean_absolute_error
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler, RobustScaler
@@ -144,26 +145,28 @@ def evaluate(
         "classification_head_only": "models/classification_head_only",
     }
 
-    # Dynamically find available fine-tuned layer models
+    # Get existing model directories
     existing_model_dirs = os.listdir("models")
-    layer_finetuned_models = {
-        f"train_from_layer_{n}_finetuning": f"models/train_from_layer_{n}"
-        for n in range(1, num_layers + 1)
-        if f"train_from_layer_{n}"
-        in existing_model_dirs  # Only include existing models
+
+    # Fetch and sort fine-tuned models automatically
+    fine_tuned_models = {
+        model: f"models/{model}"
+        for model in sorted(
+            (
+                m
+                for m in existing_model_dirs
+                if re.fullmatch(r"train_from_layer_\d+", m)
+            ),
+            key=lambda x: int(re.search(r"\d+", x).group()),
+        )
     }
 
-    # Merge dictionaries
-    fine_tuning_scenarios |= layer_finetuned_models
-
-    # Warn if some expected models are missing
-    expected_layers = [
-        f"train_from_layer_{n}_finetuning" for n in range(1, num_layers + 1)
-    ]
-    if missing_models := [m for m in expected_layers if m not in fine_tuning_scenarios]:
-        logger.warning(
-            f"⚠️ Some expected fine-tuned models are missing: {missing_models}"
-        )
+    fine_tuning_scenarios = {
+        "original_embedding": None,
+        "full_finetuning": "models/full_finetuning",
+        "classification_head_only": "models/classification_head_only",
+        **fine_tuned_models,  # Merge dynamically fetched models
+    } | fine_tuned_models
 
     # Load Fine-Tuned Models & Extract Embeddings
     available_models = {
@@ -229,8 +232,8 @@ def evaluate(
     total_time = time.perf_counter() - start_time
     logger.success("🧪 Evaluation completed in {:.2f} seconds!", total_time)
 
-    # Display Results in a Rich Table
-    table = Table(title="🌲 XGBoost Random Forest Regression Results")
+    # Display results in a rich table
+    table = Table(title="🌳 XGBoost Random Forest Regression Results")
     table.add_column("Scenario", style="cyan1", justify="left")
     table.add_column("RMSE", style="cyan1", justify="right")
     table.add_column("MAE", style="cyan1", justify="right")

@@ -1,0 +1,26 @@
+[project]
+name = "regression-fine-tuning"
+version = "0.1.0"
+description = "Regression fine-tuning"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.3.1",
+    "scikit-learn>=1.5.0",
+    "transformers>=4.41.2",
+    "python-dotenv>=1.0.1",
+    "datasets>=3.3.2",
+    "sentence-transformers>=3.4.1",
+    "accelerate>=1.4.0",
+    "trl>=0.15.1",
+    "isort>=6.0.0",
+    "black>=25.1.0",
+    "typer>=0.15.1",
+    "xgboost>=2.1.4",
+    "loguru>=0.7.3"
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.9.9",
+]

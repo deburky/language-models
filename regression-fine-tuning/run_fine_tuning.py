@@ -11,9 +11,8 @@ import typer
 from datasets import Dataset
 from loguru import logger
 from rich.console import Console
-from rich.table import Table
 from sentence_transformers import SentenceTransformer
-from sklearn.metrics import mean_absolute_error, root_mean_squared_error
+from sklearn.metrics import root_mean_squared_error, mean_absolute_error
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler, RobustScaler
 from transformers import (
@@ -147,6 +146,18 @@ def set_random_seed(seed: int, device: str):
         torch.manual_seed(seed)
 
 
+def compute_metrics(eval_pred):
+    """Compute RMSE and MAE."""
+    predictions, labels = eval_pred
+    predictions = np.array(predictions).reshape(-1, 1)
+    labels = np.array(labels).reshape(-1, 1)
+
+    rmse = root_mean_squared_error(labels, predictions)
+    mae = mean_absolute_error(labels, predictions)
+
+    return {"rmse": rmse, "mae": mae}
+
+
 @app.command()
 def fine_tune(
     data_path: str = typer.Option("marketing_sample.parquet", help="Path to dataset"),
@@ -217,7 +228,6 @@ def fine_tune(
             )
 
     for scenario_name, scenario_function in fine_tuning_scenarios.items():
-
         logger.info(f"🪛 Running fine-tuning with {scenario_name}")
 
         model_ft = AutoModelForSequenceClassification.from_pretrained(
@@ -251,6 +261,7 @@ def fine_tune(
             args=training_args,
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
+            compute_metrics=compute_metrics,
         )
 
         scenario_start = time.perf_counter()
@@ -268,8 +279,8 @@ def fine_tune(
         results.append(
             {
                 "Scenario": scenario_name,
-                "RMSE": round(eval_results["eval_loss"], 2),
-                "MAE": round(eval_results["eval_loss"], 2),
+                "RMSE": round(eval_results["eval_rmse"], 2),
+                "MAE": round(eval_results["eval_mae"], 2),
                 "Time (min)": round(training_time / 60, 2),
             }
         )
