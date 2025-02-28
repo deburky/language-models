@@ -1,13 +1,17 @@
 import subprocess
 import sys
+
 from rich.console import Console
 
 console = Console()
 
 # Define scripts with correct arguments
 scripts_with_args = [
-    ("run_fine_tuning_experiments.py", ["--batch-size", "32", "--epochs", "2"]),
-    ("run_supervised_evaluation.py", ["--pooling", "cls", "--n-estimators", "100"]),
+    (
+        "run_fine_tuning.py",
+        ["--batch-size", "32", "--epochs", "3", "--freeze-layers", "0"],
+    ),
+    ("run_evaluation.py", ["--pooling", "cls", "--n-estimators", "100"]),
 ]
 
 for script, args in scripts_with_args:

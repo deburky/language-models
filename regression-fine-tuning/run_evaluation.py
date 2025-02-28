@@ -1,6 +1,5 @@
-"""run_supervised_evaluation.py"""
+"""run_evaluation.py"""
 
-import logging
 import os
 import time
 
@@ -9,6 +8,7 @@ import pandas as pd
 import torch
 import typer
 import xgboost as xgb
+from loguru import logger
 from rich.console import Console
 from rich.table import Table
 from sentence_transformers import SentenceTransformer
@@ -25,23 +25,32 @@ console = Console()
 os.makedirs("logs", exist_ok=True)
 
 # Setup logging
-logging.basicConfig(
-    filename="logs/supervised_evaluation.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
+logger.remove()
+logger.add(
+    "logs/supervised_evaluation.log",
+    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
+    level="INFO",
+    rotation="1 MB",
+    retention="10 days",
+    compression="zip",
 )
-logger = logging.getLogger()
+logger.add(
+    sink=lambda msg: print(msg, end=""),  # Console output
+    format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{message}</cyan>",
+    level="INFO",
+    colorize=True,
+)
 
 
 def load_data(data_path: str):
-    """Loads and preprocesses the dataset."""
-    console.print("\n📥 [bold cyan1]Loading Data...[/bold cyan1]")
-    dataframe = pd.read_parquet(data_path)
+    """Load and preprocess the dataset."""
+    logger.info("📥 Loading data...")
+    dataframe = pd.read_parquet(data_path).sample(n=100)
 
     dataframe = dataframe[~dataframe["item_name"].isna()].copy()
     dataframe["asin_value_usd"] = dataframe["asin_value_usd"].astype(float)
 
-    # Normalize Price Data
+    # Normalize price data
     price_pipeline = Pipeline(
         [
             ("outlier_cap", RobustScaler(with_centering=False)),
@@ -52,11 +61,12 @@ def load_data(data_path: str):
         dataframe["asin_value_usd"].values.reshape(-1, 1)
     )
 
+    logger.success("✅ Data loaded successfully!")
     return dataframe, price_pipeline
 
 
 def get_embeddings(text_list, model_path, tokenizer, pooling="cls", device="mps"):
-    """Loads a fine-tuned model and extracts embeddings."""
+    """Load a fine-tuned model and extract embeddings."""
     model_ft = AutoModelForSequenceClassification.from_pretrained(model_path).to(device)
     model_ft.eval()
     embeddings = []
@@ -79,11 +89,24 @@ def get_embeddings(text_list, model_path, tokenizer, pooling="cls", device="mps"
     return np.vstack(embeddings)
 
 
+def set_random_seed(seed: int, device: str):
+    """Set seed for NumPy, PyTorch, and device-specific configurations."""
+    np.random.seed(seed)
+    if device == "cuda":
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+    elif device == "mps":
+        torch.mps.manual_seed(seed)
+        torch.mps.set_per_process_memory_fraction(0.7)
+        torch.backends.mps.allow_tf32 = True
+    else:
+        torch.manual_seed(seed)
+
+
 @app.command()
 def evaluate(
-    data_path: str = typer.Option(
-        "marketing_sample_for_amazon_com.parquet", help="Dataset"
-    ),
+    data_path: str = typer.Option("marketing_sample.parquet", help="Path to dataset"),
     device: str = typer.Option(
         "mps", help="Device for model evaluation (cpu, cuda, mps)"
     ),
@@ -91,13 +114,17 @@ def evaluate(
     n_estimators: int = typer.Option(
         100, help="Number of trees in XGBoost Random Forest"
     ),
+    seed: int = typer.Option(0, help="Random seed for reproducibility"),
 ):
-    """Runs supervised evaluation on fine-tuned models using XGBoost."""
+    """Run supervised evaluation on fine-tuned models using XGBoost."""
+    logger.info(f"🔁 Starting evaluation process with seed {seed}...")
+    set_random_seed(seed, device)
+    start_time = time.perf_counter()
+
     dataframe, price_pipeline = load_data(data_path)
 
     # Load Sentence Transformer & Compute Baseline Embeddings
-    console.print("\n🔍 [bold cyan1]Generating Original Embeddings...[/bold cyan1]")
-    # Load model from local path
+    logger.info("Generating original embeddings...")
     local_model_path = "models/base_model"
     model = SentenceTransformer(local_model_path)
     tokenizer = AutoTokenizer.from_pretrained(local_model_path)
@@ -105,63 +132,83 @@ def evaluate(
         lambda text: model.encode(text)
     )
 
-    # Define fine-tuned model paths
+    # Check available layers dynamically
+    base_model = AutoModelForSequenceClassification.from_pretrained(local_model_path)
+    num_layers = len(base_model.bert.encoder.layer)
+    logger.info(f"Base model has {num_layers} layers.")
+
+    # Define fine-tuned model paths dynamically
     fine_tuning_scenarios = {
         "original_embedding": None,  # No fine-tuning, use original embeddings
         "full_finetuning": "models/full_finetuning",
         "classification_head_only": "models/classification_head_only",
-        **{
-            f"last_{n}_layers_finetuning": f"models/train_from_layer_{n}"
-            for n in range(1, 6)
-        },
     }
 
+    # Dynamically find available fine-tuned layer models
+    existing_model_dirs = os.listdir("models")
+    layer_finetuned_models = {
+        f"train_from_layer_{n}_finetuning": f"models/train_from_layer_{n}"
+        for n in range(1, num_layers + 1)
+        if f"train_from_layer_{n}"
+        in existing_model_dirs  # Only include existing models
+    }
+
+    # Merge dictionaries
+    fine_tuning_scenarios |= layer_finetuned_models
+
+    # Warn if some expected models are missing
+    expected_layers = [
+        f"train_from_layer_{n}_finetuning" for n in range(1, num_layers + 1)
+    ]
+    if missing_models := [m for m in expected_layers if m not in fine_tuning_scenarios]:
+        logger.warning(
+            f"⚠️ Some expected fine-tuned models are missing: {missing_models}"
+        )
+
     # Load Fine-Tuned Models & Extract Embeddings
-    console.print(
-        "\n🔍 [bold cyan1]Loading Fine-Tuned Models & Extracting Embeddings...[/bold cyan1]"
-    )
+    available_models = {
+        k: v for k, v in fine_tuning_scenarios.items() if v is None or os.path.exists(v)
+    }
 
-    for scenario_name, model_path in fine_tuning_scenarios.items():
+    for scenario_name, model_path in available_models.items():
+        step_start = time.perf_counter()
+
         if scenario_name == "original_embedding":
-            console.print(f"\n🔍 Using original embeddings for {scenario_name}")
+            logger.info("📥 Using original embeddings for {}", scenario_name)
             dataframe[f"embedding_{scenario_name}"] = list(dataframe["embedding"])
-            continue  # Skip model loading for original embeddings
+            continue
 
-        if os.path.exists(model_path):  # Ensure model exists
-            console.print(
-                f"\n🔍 Extracting embeddings for {scenario_name} with `{pooling}` pooling"
-            )
-            embeddings = get_embeddings(
-                dataframe["item_name"].tolist(),
-                model_path,
-                tokenizer,
-                pooling=pooling,
-                device=device,
-            )
-            dataframe[f"embedding_{scenario_name}"] = list(embeddings)
-        else:
-            console.print(
-                f"\n[red]Model for {scenario_name} not found! Skipping...[/red]"
-            )
+        logger.info("📥 Extracting embeddings for {}", scenario_name)
+        embeddings = get_embeddings(
+            dataframe["item_name"].tolist(),
+            model_path,
+            tokenizer,
+            pooling=pooling,
+            device=device,
+        )
+        dataframe[f"embedding_{scenario_name}"] = list(embeddings)
+
+        step_time = time.perf_counter() - step_start
+        logger.success(
+            "Finished processing {} in {:.2f} seconds", scenario_name, step_time
+        )
 
     # Train & Evaluate XGBoost for Regression
-    console.print(
-        "\n📊 [bold cyan1]Training & Evaluating Supervised Regression Models...[/bold cyan1]"
-    )
+    logger.info("🧩 Training & evaluating supervised regression models...")
     results = []
 
-    for scenario_name in fine_tuning_scenarios:
+    for scenario_name in available_models:
         if f"embedding_{scenario_name}" not in dataframe.columns:
             continue  # Skip missing models
 
         X = np.vstack(dataframe[f"embedding_{scenario_name}"].values)
         y = dataframe["asin_value_usd_norm"].values
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42
+            X, y, test_size=0.2, random_state=seed
         )
 
         # Train XGBoost Random Forest Regressor
-        rf_model = xgb.XGBRFRegressor(n_estimators=n_estimators, random_state=42)
+        rf_model = xgb.XGBRFRegressor(n_estimators=n_estimators, random_state=seed)
         rf_model.fit(X_train, y_train)
         y_pred = rf_model.predict(X_test).reshape(-1, 1)
 
@@ -173,12 +220,17 @@ def evaluate(
         mae = mean_absolute_error(y_test_inverse, y_pred_inverse)
 
         results.append(
-            {"Scenario": scenario_name, "RMSE": round(rmse, 4), "MAE": round(mae, 4)}
+            {"Scenario": scenario_name, "RMSE": round(rmse, 2), "MAE": round(mae, 2)}
         )
-        logger.info(f"Scenario: {scenario_name}, RMSE: {rmse:.4f}, MAE: {mae:.4f}")
+        logger.success(
+            "Scenario: {}, RMSE: {:.2f}, MAE: {:.2f}", scenario_name, rmse, mae
+        )
+
+    total_time = time.perf_counter() - start_time
+    logger.success("🧪 Evaluation completed in {:.2f} seconds!", total_time)
 
     # Display Results in a Rich Table
-    table = Table(title="XGBoost Random Forest Regression Results")
+    table = Table(title="🌲 XGBoost Random Forest Regression Results")
     table.add_column("Scenario", style="cyan1", justify="left")
     table.add_column("RMSE", style="cyan1", justify="right")
     table.add_column("MAE", style="cyan1", justify="right")
@@ -186,7 +238,7 @@ def evaluate(
     for result in results:
         table.add_row(result["Scenario"], str(result["RMSE"]), str(result["MAE"]))
 
-    console.print("\n📊 [bold cyan1]Final Supervised Learning Results:[/bold cyan1]")
+    console.print("\n[bold cyan1]Final Supervised Learning Results:[/bold cyan1]")
     console.print(table)
 
 
