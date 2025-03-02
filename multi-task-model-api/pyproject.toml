@@ -1,0 +1,25 @@
+[project]
+name = "multi-task-model-api"
+version = "0.1.0"
+description = "Multi-task model API"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "black>=25.1.0",
+    "duckdb>=1.2.0",
+    "faiss-cpu>=1.10.0",
+    "fastapi>=0.115.10",
+    "httpie>=3.2.4",
+    "mypy>=1.15.0",
+    "numpy==1.26.1",
+    "pydantic>=2.10.6",
+    "pytest>=8.3.4",
+    "ruff>=0.9.9",
+    "scikit-learn>=1.6.1",
+    "scipy>=1.13.1",
+    "sentence-transformers>=3.4.1",
+    "torch>=2.6.0",
+    "transformers>=4.49.0",
+    "typer>=0.15.2",
+    "uvicorn>=0.34.0",
+]

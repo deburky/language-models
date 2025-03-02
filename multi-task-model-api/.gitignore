@@ -1,0 +1,15 @@
+# Ignore virtual environments
+.venv/
+
+# Ignore IDE and system files
+__pycache__/
+.ruff_cache/
+*.pyc
+*.pyo
+.idea/
+.vscode/
+.DS_Store
+
+# Ignore Jupyter and logs
+.ipynb_checkpoints/
+logs/
