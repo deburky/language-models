@@ -31,7 +31,7 @@ db = SQLiteVSS.from_texts(
     texts=texts,
     embedding=embedding_function,
     table="document",
-    db_file="db/vss.db",
+    db_file=f"db/{DB_NAME}",
     metadatas=[
         {"source": "finance_docs"} for _ in texts
     ],  # Ensure it's a list of dictionaries
