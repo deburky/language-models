@@ -1,0 +1,17 @@
+# Remove .env file
+.env
+
+# Remove .venv directory
+.venv
+
+# Remove parquet files
+*.parquet
+
+# Ingnore __pycache__
+__pycache__/
+
+# Remove .DS_Store
+.DS_Store
+
+# Remove backup folder
+backup/
