@@ -1,0 +1,1012 @@
+# Portfolio Deck
+
+![Image](images/photo_02.png)
+
+<h2>Denis Burakov</h2>
+
+[![GitHub Badge](https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white)](https://www.github.com/deburky)
+[![RP Badge](https://img.shields.io/badge/jupyter-%23FA0F00.svg?style=for-the-badge&logo=jupyter&logoColor=white)](https://www.risk-practitioner.com)
+
+This deck contains a portfolio of materials about the use of machine learning models in lending business and credit risk management.
+
+## Designing AI Underwriters
+
+The integration of AI into modern loan underwriting is set to reshape how institutions approach credit decisioning. As borrower profiles evolve and regulatory expectations grow, traditional scoring models — including those based on transactional mining patterns — remain essential, but often fall short when addressing edge cases and adapting in real time.
+
+With the advent of large language models (LLMs), financial institutions can now deploy multi-agent AI systems, where each agent specializes in a specific task. One may extract key financial data from applications, another align decisions with policy or regulatory frameworks, and a third one gives final recommendations. Throughout this process, a human underwriter remains in the loop by providing oversight.
+
+Not only does this collaborative framework accelerate decision-making, but it also improves consistency, transparency, and adaptability across the underwriting pipeline — as illustrated in the diagram below.
+
+![Simplified decision tree used by AI Underwriters to assess applications based on risk thresholds.](images/underwriting/underwriting_decision_tree.png)
+
+> **So what is an AI Underwriter?**  
+> At its core, it’s an assistant that learns decision patterns from past loan data and applies lending policies to help evaluate new applicants. Like human underwriters, these agents benefit from structured onboarding and continuous exposure to new cases.
+
+---
+
+### AI Underwriter Assistants
+
+Before AI underwriting systems can operate effectively, they must be trained — just like human underwriters. Human expertise develops through reviewing past cases and gaining hands-on experience before making independent decisions. Similarly, AI-based underwriting assistants require structured onboarding, typically delivered through prompt-based instructions, after which they begin to learn decision-making patterns from historical data aligned with real-world lending policies. Over time, these agents can refine their logic, improve accuracy, and operate within established compliance frameworks.
+
+OpenAI's Assistants API allows users to create AI-powered underwriting systems capable of handling multiple risk assessment tasks simultaneously. Previously, coordinating multiple OpenAI Assistants to collaborate on a task was difficult. However, last year’s improvements in the Assistants API, along with the introduction of the Agents SDK, have opened new possibilities for building more modular, intelligent, and context-aware systems.
+
+In our workflow, we leverage the Assistants API specifically for nuanced, narrative-driven analysis, where each assistant brings domain-specific reasoning.
+
+In this example, we use two AI underwriting assistants:
+
+- **Underwriter** – Analyzes past loan applications and prepares key financial insights.  
+- **Decision Maker** – Uses these insights, along with credit scores from a scoring model, to make final approval decisions.
+
+### Dataset Overview
+
+To train and evaluate these assistants, we use two datasets:
+
+- **Training Set:** 700 records with credit history  
+- **Test Set:** 100 records without credit history, plus a model-generated credit score
+
+---
+
+### Workflow Structure
+
+The interaction between Underwriter and Decision Maker is structured as follows:
+
+1. The underwriter introduces themselves and summarizes their role.  
+   The decision-maker introduces themselves and clarifies their expectations.
+
+2. The underwriter highlights key insights from the data analysis.  
+   The decision-maker uses the insights from the underwriting report, analyzes credit scores, and makes final decisions.
+
+Below we show how the underwriting flow begins:
+
+![Introduction of the AI Underwriting Team](images/underwriting/underwriting_00.png)
+
+---
+
+### Evaluation & Observations
+
+This conversation continues to produce an auditable log. After the AI Underwriters complete their review and save their decisions to a file, we evaluate their performance against historical outcomes.
+
+While the results are not deterministic, thoughtful prompt engineering enables the assistants to produce relatively consistent outputs. In this case, we observed:
+
+- **Assistant approval rate:** 78%  
+- **Historical approval rate:** 79%  
+- **Matched approvals (true positives):** 63%
+
+These results indicate that the assistant aligns closely with historical patterns, though its slightly more conservative approach may warrant further investigation into prompt refinements. Overall, the system shows strong promise as a reliable decision-support tool in real-world underwriting scenarios.
+
+---
+
+- 📁 **[Git repo](#)**  
+- 💻 **[Notebook](#)**
+
+---
+
+### Concluding Remarks
+
+As financial institutions confront growing complexity in credit decisioning, AI-enabled, human-in-the-loop underwriting frameworks are emerging as a compelling path forward. By embedding large language models within a multi-agent workflow, institutions can automate repetitive evaluations while preserving expert input for complex, high-stakes cases.
+
+AI agents can extract data, align with policy rules, and distill risk insights into compact, review-ready packages — enabling faster, more consistent decisions. While the technology continues to evolve, its integration offers a unique opportunity to reduce operational burden, increase transparency, and ensure careful assessment of edge cases.
+
+---
+
+### References
+
+James Wilson and Paul R. Daugherty. *The Secret to Successful AI-Driven Process Redesign.* Harvard Business Review, January–February 2025.
+
+---
+
+## Measuring Calibration Accuracy of Modern PD Models
+
+![Image](images/calibration/calibration_00.jpeg)
+> Having a common metric for analyzing calibration accuracy of modern PD models allows practitioners to develop more explainable and accurate credit risk solutions
+
+Key dimensions of probability of default (PD) credit risk models’ quality are discriminatory power 🔮 and calibration accuracy 📏. The first dimension measures the model’s ability to correctly order customers based on their default risk while the second one assesses how accurately the model's predicted PDs fare against observed default rates (ODRs).
+
+Discriminatory power of PD models is commonly measured via the Gini coefficient (also known in the literature and practice as Accuracy Ratio or Somers’ D), which has become a market standard for scoring models. This metric has a convenient visual representation (through a ROC or CAP curve) that allows model developers and end users to see the impact of scoring models on default identification. As an example, a model with considerable discrimination ability can capture 80% of defaults based on 20% of the riskiest customers (van der Burgt 2008).
+
+Unlike discriminatory power, calibration of PD models is difficult to measure with a single yardstick. Scoring rules such as Brier score or a logarithmic scoring rule (commonly known as Log-loss or Cross-entropy) can be viewed as calibration accuracy golden standards (Harrell 2008). Both metrics are optimized when the predicted PDs are identical to ODRs, but they cannot be interpreted without additional context (what can a Brier score of 10% really tell us about accuracy?). Beyond that, Brier score for defaulted and non-defaulted customers can differ per classifier which introduces further complexity (for a practical example, please see Merćep et al. 2020).
+
+In what follows I explain the concept of Expected Calibration Error (ECE) and provide examples based on simulated data (based on the code from Fonseca and Lopes 2017) using several parametric calibration approaches.
+
+<h2> Expected Calibration Error </h2>
+
+In a more recent strand of calibration literature developed within the neural networks applications (Naeni et al. 2015, Guo et al. 2017), a new metric for evaluating calibration accuracy has gained traction, Expected Calibration Error (ECE), including its derivations and extensions. This metric has several advantages compared to proper scoring rules: it’s simple to calculate, easy to visualize, and straightforward to explain to a non-technical audience. Among the downsides are well-known problems related to binning schemes such as selection of an optimal number of bins, unequal bin sizes among other problems linked to data dispersion (Nixon et al. 2020, Pan et al. 2020).
+
+To compute ECE, PDs in the calibration sample are partitioned into m equally spaced bins, and the weighted average of the difference between the bin’s ODR and the bin’s PD is computed, where the weights are based on the proportion of customers in the corresponding bin:
+
+![Image](images/calibration/calibration_01.png)
+
+ECE is frequently reported as the main calibration accuracy metric in recent literature on calibration in various machine learning applications (Laves et al. 2019, Ovadia et al. 2019, Garcin and Stéphan 2021, Rajaraman et al. 2021).
+
+<h2> Data and calibration methods </h2>
+
+Let’s take a closer look at the ECE metric in action based on a simulated dataset with 10,000 examples, which is further split into train (80%) and test (20%) sets. For illustration purposes, we will use calibration diagrams (also known as reliability diagrams) since they are closely linked to the concept of ECE.
+
+We compare the following (parametric) calibration models:
+* Logit calibration (also known as the "sigmoid" model suggested by Platt 2000)
+* Non-linear least squares calibration
+* Robust logit calibration (a variant of the "sigmoid" model, see Tasche 2013 for more details)
+
+The following diagram displays the outputs from the calibration models:
+
+![Image](images/calibration/calibration_02.png)
+
+As can be seen from the diagram above, all calibration methods achieve a relatively good accuracy on the test set based on the calibration plots with 10 bins of equal width. In certain applications, it is also possible to scope the analysis to a different linear space if calibration in a certain sub-range is of particular interest to a developer (a good example based on a quantile distribution is provided in Sigrist and Leuenberger 2022).
+
+<h2> Calibration metrics </h2>
+
+Let's look at a summary of calibration metrics for our example:
+
+![Image](images/calibration/calibration_03.png)
+
+Based on reported Brier scores, all calibration methods produce nearly the same outcome which does not differ significantly from the baseline.
+In the second column we can observe that among the three methods Logit calibration achieves the lowest ECE. Compared to the baseline, this is a 77% lift in accuracy that can be considered a noticeable improvement. If we look only at Brier score, the improvement would amount only to 1.5% which may seem trivial. The last column reports Maximum Calibration Error (MCE) which measures maximum discrepancy between ODRs and PDs. Here we observe that Robust logit calibration method produces the smallest MCE which comes from lower sub-ranges of the calibration plot.
+
+<h4> Concluding remarks </h4>
+
+The use of common metrics in measuring calibration accuracy for PD models brings benefits of interpretability that allow model developers to identify potential sources of miscalibration in order to further improve the predictive performance of credit risk models. With new calibration frameworks becoming readily available (e.g., netcal) coupled with advances in machine learning techniques used in risk differentiation, having a common metric such as ECE for analyzing calibration accuracy of probabilistic classifiers used in PD models can allow practitioners to develop more explainable and accurate credit risk solutions 🚀.
+
+<i>
+
+--
+
+The technical appendix with the code can be found in my [GitHub](https://github.com/deburky/calibration). You can play around with the data in the Google Colab [notebook](https://colab.research.google.com/github/deburky/calibration/blob/main/Measuring_calibration_accuracy_PD.ipynb).
+
+</i>
+---
+
+## Designing Credit Scoring Systems with ML Components
+
+> Incorporation of machine learning components into credit scoring systems with a modular architecture allows credit risk model developers to get the best out of increasingly growing data and foster experimentation in designing the next generation of state-of-the-art credit risk models
+
+![Image](images/system_design/system_design_00.jpeg)
+
+<h2> Introduction </h2>
+
+The concept of a modular design of credit risk models has become a common industry practice (BIS 1999). With the advent of machine learning (ML) techniques in the discriminatory phase of credit risk models (Wosnitza 2022), modular model design is gaining an even larger importance (McKinsey 2021), and many financial institutions are investigating how to reap the benefits of new ML models in order to reduce the costs of doing credit business yet remain compliant with new regulatory trends in this area (European Banking Authority 2021).
+
+Let’s list several most important advantages of a modular design for a credit rating system:
+
+* Submodels can be estimated using different scoring functions (e.g., decision trees for one data type or logistic regressions for another) and based on different target variables (what we normally call “bad” flags) when the desired length of default observation window may not be available to model developers
+* Submodel scores can be "turned off" in case of dataset shifts or macroeconomic changes (e.g., this can be solved by passing a neutral logit score representing a portfolio average default rate for a submodel in question)
+* Internal and external (credit bureaus, alternative scoring) scores can be included as separate submodules to ensure data quality of inputs into the scoring system
+* Ability to include short-term prediction models for early warning signals (e.g., forecasts estimated on weekly and even daily level using XGBoost or neural networks as opposed to longer-term predictions produced by other submodels)
+* Use expert scorecards as additional inputs into the rating model until a submodel can be fully trained based on a new data source
+
+Among the limitations of modular design are potential correlations between submodels and increased complexity in terms of aggregation logic leading in turn to more sophisticated model infrastructure and monitoring frameworks. However, an alternative of a monolithic design of credit risk models has proven to cost banks lots of money and refactoring efforts. As such, a modular model design can be seen as requiring more efforts in the short term but more efficient and flexible and less costly in the long run.
+
+In this post, I would like to introduce you to a model design of a behavioral scoring system based on two submodels estimated with different scoring functions and further integrated into one credit score that can be used in the decision-making process.
+
+<h2> Data and model design </h2>
+
+For this example, I am using a [Kaggle dataset Give me some credit](https://www.kaggle.com/competitions/GiveMeSomeCredit). Most of the risk drivers in this dataset are “behavioral” features in the sense that they are observed after a customer started using a credit product (credit limit utilization, past due events etc). Beyond that, data resembles typical retail banking portfolios with revolving credit products such as credit cards or current accounts.
+
+Based on the available data, we will create two submodels with the following model features that were short-listed based on expert judgment:
+
+<b>User profile module:</b>
+* Credit card utilization (%)
+* Age (years)
+* Debt ratio (%)
+
+<b>Arrears module:</b>
+* 30-60 days past due events (count)
+* 60-90 days past due events (count)
+* 90 days past due events (count)
+
+We expect positive economic relationships with the default rate for all factors but 'Age' (higher the age, lower the default rate).
+
+To make our example more practical, we can assume that the Arrears module can be estimated on a different set of target variables, i.e. in a multi-class model where days past due buckets can be modeled as class probabilities. Based on recent advances in credit risk early warning systems in banks, for this submodule we would normally opt for a more advanced approach than logistic regression (e.g., RandomForest and XGBoost show decent performance for this use-case in general).
+
+For our dataset, we will use good old Weight-of-evidence Logistic regression (WOE LR) for the User profile module and XGBoost with WOE bins for the Arrears module as scoring functions. Unfortunately, Python does not yet have a dedicated library similar to R’s [`discretize_xgb`](https://github.com/tidymodels/embed/blob/main/R/discretize_xgb.R) hence we will use [OptBinning](http://gnpalencia.org/optbinning/) library for pre-processing for both submodules to ensure that the behavior of the XGBoost submodel in our example is identical to WOE LR to keep things simple (one can, of course, think of any other algorithm that is sufficiently explainable for the purpose of risk differentiation other than this XGBoost setup).
+
+![Image](images/system_design/system_design_01.png)
+
+In the Cumulative Accuracy Profile (CAP) diagram above we can see that both submodules have a fair discriminatory power measured in terms of the Gini coefficient. One can notice that the CAP curvatures are slightly different which indicates that these sets of model features may describe different aspects of default risk.
+
+<h2> Integration of submodels </h2>
+
+Let’s now integrate our submodel scores using a monotonic XGBoost. Monotonic constraints in XGBoost are a powerful tool to ensure monotonicity of the logit credit score for rank-order preservation. Monotonicity and other constraints are essential to both interpretability and legal requirements for lending models (Chen et al. 2021). It is advised to use a logistic regression model for integration as a starting point.
+
+In the following diagram we can see the CAP curve of submodels and the final model we can also call a metascore:
+
+![Image](images/system_design/system_design_02.png)
+
+We can see the improved performance of our credit score when we use a combination of submodels. A Gini of 71% can be viewed as a very good discrimination ability in the context of retail lending.
+
+Let’s now look at the calibration diagram showing calibration fit for submodels and the final model:
+
+![Image](images/system_design/system_design_03.png)
+
+We can see that the final model’s PD has a relatively good calibration accuracy. This is confirmed by the Expected Calibration Error (ECE):
+
+* Module 1 (WOE LR) ECE: 0.13%
+* Module 2 (XGB) ECE: 0.25%
+* Final Model (XGB + LR) ECE: 0.21%
+
+Since our credit score is well calibrated we can perform the following back-test. Let’s assume that we have a rating scale and want to map direct PDs onto it. Let’s assume that we can cut off customers based on the rating class midpoint PD and then evaluate which proportion of defaults we would be able to avoid if we decided not to continue lending to these customers.
+
+![Image](images/system_design/system_design_04.png)
+> Image caption: Plot with masterscale
+
+Based on the diagram above, we observe that if we use a PD of 5% as a cut-off we would be able to avoid 80% of default events based on our data. This would mean that we can lend to a larger group of customers and not limit lending solely to the best rating grades (e.g., PD < 3%).
+
+<h2> Concluding remarks </h2>
+
+Incorporation of machine learning components into credit scoring systems with a modular architecture allows credit risk model developers to get the best out of increasingly growing data and foster experimentation in designing the next generation of state-of-the-art credit risk models.
+One of the limitations of making progress in this area, however, resides with the validation of (sub)models based on new ML methods. One can argue, however, that validating a submodel is far easier than evaluating a ML-based monolithic algorithm with many features, a plethora of hyperparameters, and lots of SHAP plots to look at.
+
+We will talk about validation of new-gen risk models in the next post.
+
+<i>
+
+--
+
+The technical appendix with the code can be found in my [GitHub](https://github.com/deburky/credit-scoring-systems).
+
+</i>
+---
+
+## Validating New Generation Credit Risk Models
+
+![Image](images/validation/validation_00.jpeg)
+
+> Validation of new generation credit risk models incorporating advanced analytics techniques must cover model quality dimensions that go beyond traditional validation tests prescribed by existing regulations. Rethinking existing model risk management frameworks and focusing on such quality dimensions as model choice, model parsimony, and model complexity can help model developers and validators build more reliable credit risk systems
+
+Model validation can be described as a set of processes and activities intended to verify that models are performing as expected, in line with their design objectives and business uses (SR 11-7). During validation, testing of data, model construct, assumptions, and model outcomes are performed regularly in order to identify, monitor, record, and remediate model limitations and weaknesses (PRA CP6/22).
+
+Existing regulatory validation guidelines are ill-suited for addressing model risks stemming from the use of machine learning techniques in credit risk model development. With a growing influence of advanced analytics on credit risk modeling practices, established know-hows of model validation need to be re-evaluated to account for model risks associated with new model training methods.
+
+In this post I will share a framework for validating new generation credit risk models based on three dimensions of model quality:
+
+* Model choice (challenger models)
+* Model parsimony (validation model)
+* Model complexity (parameterization)
+
+These dimensions in no way serve to reflect all aspects of model quality, including assessments of model assumptions, input data quality and representativeness as well as other traditional quantitative tests (e.g., discriminatory power and calibration accuracy) and one can argue that these are not completely new. Yet, I am focusing on these dimensions because they can be universally applied to next-gen credit risk and non-credit risk models alike which makes this framework relatively flexible for automating validation tasks.
+
+<h2> Model development </h2>
+
+In this example, we will work with a credit card dataset contributed to the UCI Machine Learning Repository, which comes from a Taiwanese bank. This sample contains information on default payments, demographic factors, credit data, history of payment, and bill statements of credit card clients in Taiwan from April 2005 to September 2005.
+
+<h3> Data </h3>
+
+Before proceeding to building the model, we split the data into train, validation, and test sets. This is done using a two-step hold-out method (also known as train/test split). First, we split our dataset into train (full set) and test parts (80/20% split) and then split the train (full set) part into train and validation parts (75/25% split).
+
+The split is shown in the visual below:
+
+![Image](images/validation/validation_01.png)
+
+From 30,000 original observations we obtain the following samples:
+* Train set: 18,000 observations
+* Validation set: 6,000 observations
+* Test set: 6,000 observations
+
+Train and test sets will be used in model development process, while validation set will be kept for validation tests only.
+Further in our example we will extensively rely on cross-validation resampling procedures. Cross-validation is a resampling method that uses different portions of the data to train and test a model on different iterations.
+A k-fold cross-validation procedure is visualized below:
+
+![Image](images/validation/validation_02.png)
+
+where:
+A model is trained using k-1 of the folds (“blue” folds)
+The resulting model is validated on the remaining folds (“orange” folds that are used as a test set to compute a performance measure such as AUC)
+We also use a [stratified cross-validation](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.StratifiedKFold.html) to preserve the observed default rate in each fold.
+
+<h3> Model training </h3>
+
+We will train our scoring model using AutoWoE algorithm (WhiteBox model for binary classification on tabular data) from the [LightAutoML](https://lightautoml.readthedocs.io/_/downloads/en/latest/pdf/) library developed by Sberbank's AI Lab. AutoWoE combines the well known weight-of-evidence logistic regression design with binning based on gradient boosting ([lightgbm](https://lightgbm.readthedocs.io/en/v3.3.2/)). For a practical introduction to this library, I highly recommend [this source](https://www.kaggle.com/code/alexryzhkov/lightautoml-interpretable-model-autowoe).
+
+The AutoWoE pipeline is visualized below:
+
+![Image](images/validation/validation_03.png)
+
+As one can notice, the process resembles a typical scorecard development process, which is fully automated within this library.
+Discriminatory power metrics of the AutoWoE model are reported below:
+
+* Train Gini coefficient: 53.95%
+* Test Gini coefficient: 56.13%
+
+<h2> Model validation </h2>
+
+<h3> Model choice </h3>
+
+We challenge the modeling choice by running two challenger models with the highest interpretability, namely logistic regression and decision tree, to see if we are able to achieve similar discriminatory power to the model being validated.
+
+<h3> Logistic regression </h3>
+
+To construct the logistic regression model we create a pipeline with one-hot encoding for categorical features and logistic regression without regularization.
+
+![Image](images/validation/validation_04.png)
+
+The discriminatory power results are reported below:
+* Train Gini coefficient: 52.75%
+* Test Gini coefficient: 54.43%
+
+<h3> Decision Tree </h3>
+
+We run several decision tree models with different depths ([1, 3, 5, 6, 8, 10]) and test the performance on out-of-fold predictions.
+
+Below, feature importances for the selected model (depth of 6) is visualized:
+
+![Image](images/validation/validation_05.png)
+
+We observe that the model is heavily influenced by the PAY_0 feature which represents the most recent repayment status.
+
+In the following decision tree plot we see that PAY_0 provides an important split for good and bad risk. We observe two worst probabilities in our sample assigned to the two blue nodes with 68% and 71% probability of default.
+
+![Image](images/validation/validation_06.png)
+
+<h3> Comparing the models </h3>
+
+Discriminatory power of the final model and two challengers on the test set is visualized in the diagram below:
+
+![Image](images/validation/validation_07.png)
+
+As we can see from the chart above, logistic regression can be considered a viable alternative to the final model estimated with the AutoWoE algorithm.
+
+<h3> Model parsimony </h3>
+
+This test is based on a validation feature selection from the original data to test if another set of useful features can be obtained for the given problem. We use the Sequential Feature Selection (SFS) algorithm from Sebastian Raschka’s [mlxtend](http://rasbt.github.io/mlxtend/user_guide/feature_selection/SequentialFeatureSelector/) library.
+
+The SFS algorithm removes or adds one feature at a time based on the model performance until a feature subset of the desired size k is reached. We use a Decision Tree model with a depth of 6 from the previous test as a scoring function and AUC as the performance metric. Additionally, we use a 5-fold cross-validation for model training in this example.
+
+The result is shown in the following chart:
+
+![Image](images/validation/validation_08.png)
+
+We can see that the highest discriminatory power (AUC) is achieved with 8 features in the model.
+
+We additionally identify potential features that were not considered in the final model: PAY_2 (Repayment status in August, 2005) and BILL_AMT1 (Amount of bill statement in September, 2005). These features can be recommended to the development team for model improvements and experiments.
+
+Discriminatory power of the validation model is reported below:
+
+* Train Gini coefficient: 52.26%
+* Test Gini coefficient: 51.51%
+
+<h3> Model complexity </h3>
+
+EBA Supervisory Validation Handbook 45(b) includes a validation of "Any functional form or ‘hyperparameters’ used in the model development to aggregate all the risk drivers” into the scope of validation tests. In Chapter 3.1 Challenges posed by ML models, European Banking Authority (EBA) in its EBA/DP/2021/04 writes that “the validation function is expected to analyse and challenge the model design, assumptions and methodology ... For example, the validation of the hyperparameters.”
+
+In our example, we do not work with hyperparameters in the strict sense (parameters that cannot be directly learned from the regular training process). However, the example easily generalizes to hyperparameters used in non-parametric models with optimizers such as [Optuna](https://optuna.org/), [Hyperopt](http://hyperopt.github.io/hyperopt/), or [Skopt](https://scikit-optimize.github.io/stable/).
+
+We assess the choice of parameters in the final model using Optuna. For more insights on how to use Optuna for your problem I recommend this [resource](https://www.analyticsvidhya.com/blog/2021/09/optimize-your-optimizations-using-optuna/).
+
+We test the following parameter grids in the model:
+
+* Pearson correlation threshold (0.5, 0.7, 0.9)
+* AUC threshold (0.5, 0.55, 0.6)
+* p-value threshold (0.01, 0.05, 0.1)
+* Remove features with a single split (True, False)
+* WOE encoding based on cross-validation (True, False)
+* Type of importance (feature importance, permutation importance)
+
+We train the model with parameter search on the validation sample and measure performance on the test sample. We use a random seed to make the results reproducible.
+
+Below the results of the best trial are reported:
+* Best value: 52.01%
+* Best params: {'pearson_th': 0.7, 'metric_th': 0.5, 'force_single_split': True, 'oof_woe': False, 'imp_type': 'perm_imp', 'p_val': 0.1}
+
+Optuna provides excellent graphics to trace the study process as shown below:
+
+![Image](images/validation/validation_09.png)
+
+In our example lowering the p-value and Pearson correlation thresholds had the largest impact on the objective value.
+
+![Image](images/validation/validation_10.png)
+
+We can see that the final model delivers higher performance on the test sample than the one developed using parameter optimization, therefore the choice of parameters used appears warranted:
+
+* Final model Test Gini: 56.13%
+* Retrained model Test Gini: 54.72%
+
+<h2> Concluding remarks </h2>
+
+Validation of new generation credit risk models incorporating advanced analytics techniques must cover model quality dimensions that go beyond traditional validation tests prescribed by existing regulations. Rethinking existing model risk management frameworks and focusing on such quality dimensions as model choice, model parsimony, and model complexity can help model developers and validators build more reliable credit risk systems.
+
+<i>
+--
+
+The technical appendix with the code can be found in my [GitHub](https://github.com/deburky/model-validation). You can play around with the data in the Google Colab [notebook](https://colab.research.google.com/github/deburky/model-validation/blob/main/Validating_new_generation_credit_risk_models.ipynb).
+
+</i>
+
+---
+
+## Measuring the Benefits of Credit Risk Model Use
+
+![Image](images/benefits/benefits_00.jpeg)
+> When assessing credit risk models' usefulness, it is important to consider the potential costs to the lender if the model makes inaccurate predictions as well as the benefits of correctly predicting good risk. How can the lenders know if their model is actually useful? By incorporating the cost-benefit analysis into model performance assessments, it is possible to gain a more comprehensive understanding of the model's benefits that go beyond formal statistical measures. The cost-benefit approach to model evaluation can help end-users to grasp the business importance of the model and secure the model's buy-in.
+
+
+When developing credit risk models, risk practitioners tend to focus on quantitative metrics such as the Gini coefficient, KS, AUC or AUC-PR to compare models and pick the one with the best predictive performance. What is often overlooked in this process, however, is the assessment of the model's benefits (profit & loss analysis), without which the formal metrics may not tell the whole story.
+
+Take as an example a ROC curve shown below. The ROC curve is a graphical representation of the performance of a scoring model at different classification thresholds above which we consider a loan to be bad:
+
+![Image](images/benefits/benefits_01.png)
+
+![Image](images/benefits/benefits_02.png)
+
+The second chart depicts the balance between accurately identifying defaults (true positives) and mistakenly flagging non-default cases as defaults (false positives), based on the chosen threshold (0.5). For a good visual explanation of the ROC curve I recommend this [source](https://github.com/dariyasydykova/open_projects/tree/master/ROC_animation).
+
+While the ROC analysis may be useful for technical experts, it may not be easily understood by non-technical audiences. Although the charts indicate the direction to follow to identify the best model, it may not convey a clear business value to the end-users.
+
+<h2> Cost-benefit matrix </h2>
+
+An alternative way to look at the business value is through the economic benefits of a credit risk model, i.e. how well it is able to classify instances in terms of costs and profits of identifying defaults and non-defaults correctly.
+Let’s look at an example of a cost-benefit matrix:
+
+![Image](images/benefits/benefits_03.png)
+
+A cost-benefit matrix approach is a useful way to evaluate a risk model's performance, as demonstrated in Databricks' analysis of loan approval ([Evaluating Risk for Loan Approvals using XGBoost](https://pages.databricks.com/rs/094-YMS-629/images/loan-risk-analysis-xgb.html)).
+
+To evaluate the business value of the model, the authors suggest calculating the millions of dollars saved from preventing loss due to bad loans. The goal of the metric is to maximize loss avoided (TP) and minimize profit forfeited (FP) using the following formula:
+
+<b>value = -(loss avoided - profit forfeited)</b>
+
+Although intuitive, this approach relies a predefined probability cut-off (e.g., 0.5), which may not work well for imbalanced problems like default prediction and it therefore does not give a fair assessment across all potential thresholds above which we can consider a loan to be bad.
+
+<h2> Profit curves </h2>
+
+An alternative way to evaluate the benefit of a model is to use a profit curve, as proposed by Carmen Lai in a paper on [user churn prediction problem](https://carmenlai.com/2016/11/12/user-churn-prediction-a-machine-learning-workflow.html).
+
+A profit curve for the churn problem takes into account the dollar costs and profits associated with true positives, false positives, true negatives, and false negatives across all potential thresholds as shown below:
+
+![Image](images/benefits/benefits_04.png)
+
+When assessing credit risk models' usefulness, it is important to consider the potential costs to the lender if the model makes inaccurate predictions as well as the benefits of correctly predicting good risk.
+
+One way to evaluate this trade-off is through the use of a profit curve, which can answer questions regarding the model benefits at all possible classification thresholds. By analyzing the profit curves of various models, it is possible to select the optimal model that maximizes the overall profitability.
+
+The aim of this post is to integrate these approaches from risk and churn use-cases and propose a practical framework for evaluating the benefits of credit risk model use.
+
+<h2> Real-world example </h2>
+
+We will work with a real-world dataset, Lending Club Loans, where the target variable is a write-off event. The dataset can be downloaded from this [source](https://data.world/jaypeedevlin/lending-club-loan-data-2007-11).
+We calculate profit by multiplying loan amount by interest rate and calculate loss by multiplying the loan amount by default rate. For this simplified example, we get an average profit per loan equal to `1,430 $` and an average loss of `1,454 $`.
+
+The cost-benefit matrix we will use looks as follows:
+
+![Image](images/benefits/benefits_05.png)
+
+According to this matrix, we are losing profits when we incorrectly identify good risk as bad and incur losses when we incorrectly identify bad risk as good. In other cases, we lose `0 $` if we correctly predict defaults and make profit when we correctly predict non-defaults.
+
+For our example, we will create four model scores to be used in profitability analysis:
+
+* External score based on FICO scores
+* Internal score based on payment features
+* Meta-score combining internal and external scores
+* XGBoost score trained on all input features
+
+Profit curves fitted on the test data for four models are visualized below:
+
+![Image](images/benefits/benefits_06.png)
+
+As we can see from the chart above, the XGB score appears slightly more profitable than the linear model combining internal and external scores. It means that the XGBoost model could identify good and bad risk more accurately and hence deliver not only the highest statistical performance but also the overall benefit of the model.
+
+<h2> Concluding remarks </h2>
+
+By incorporating the cost-benefit analysis into model performance assessments we can gain a more comprehensive understanding of a credit risk model's usefulness that goes beyond simple statistical measures. The cost-benefit approach to model evaluation can help end-users to grasp the business importance of a model and secure a model buy-in.
+
+<i>
+--
+
+The technical appendix with the code can be found in my [GitHub](https://github.com/deburky/measuring-benefits-of-model-use).
+
+</i>
+
+---
+
+## Exploring Interpretable Scorecard Boosting
+
+![Image](images/boosting/boosting_00.jpeg)
+> Explainability is a crucial element in credit decisioning, as consumers have the right to understand why their applications were rejected and to question the data and methods behind the decision. While scorecards based on linear models have traditionally been considered the gold standard for standardized and reliable credit risk assessment, a more advanced technique called scorecard boosting carries potential in boosting predictive power of models without sacrificing their explainability.
+
+Credit scorecards provide lenders with a standardized and objective method to assess credit risk and make informed, automated lending decisions. They play a crucial role in streamlining the lending strategy, minimizing the potential for human bias, and enabling effective risk management.
+
+One of the key methods utilized in scorecard development is the Weight-of-Evidence Logistic Regression (WOE LR) model design. These "glass-box" models have been in use for decades and are known for their ease of interpretation. What is often overlooked, they have demonstrated reliability in production and can be deployed using SQL alone.
+
+However, a limitation of these models is their inability to describe the risk attributes of different segments and products within a single scorecard due to their relative simplicity. Beyond that, the use of numerous scorecards has several drawbacks. Processes such as beta tuning and retraining, validation, versioning, deployment, and maintenance require significant manual effort and subject matter expertise.
+
+In this post, building upon [previous work by Scotiabank's ML team](https://blogs.nvidia.com/blog/2020/09/23/ai-credit-risk-scotiabank/), I will follow their proposed credit risk modeling technique based on scorecard boosting. This version of good-bad analysis can enhance scorecard performance without compromising model interpretability, which is crucial for explaining credit decisions to model users, customers, and regulators alike.
+
+<h2> Scorecard boosting </h2>
+
+Credit scoring is a high-stakes field where accuracy and interpretability are crucial for real-world usability. As a result, many complex "black-box" algorithms have not gained widespread adoption in lending. An excellent example highlighting this is the outcome of the [FICO Explainable Machine Learning Challenge](https://community.fico.com/s/explainable-machine-learning-challenge), where Duke University's Team [emerged as winners](https://community.fico.com/s/blog-post/a5Q2E0000001czyUAA/fico1670) by building a fully transparent "glass-box" risk model. Their model not only outperformed more complex alternatives in terms of interpretability but also exhibited superior predictive power.
+
+<iframe class="video" width="640px" height="480px"
+        src="https://img.youtube.com/vi/https://youtu.be/QL7D2TMj7ck/0.jpg)](https://youtu.be/QL7D2TMj7ck)"
+        allowfullscreen></iframe>
+
+The need for reliable scoring models is also highlighted by regulation and model risk management best practices. A corollary of this requirement is what is known as "accuracy-explainability" trade-off: it may not be feasible to increase one dimension without decreasing the other.
+
+In his lecture [Machine Learning for Retail Credit Risk for NVIDIA](https://www.nvidia.com/en-us/on-demand/session/gtcspring21-s31327/), Paul Edwards presented a well-known accuracy-explainability diagram that specifically addressed the intricacies of the credit risk use-case:
+
+![Image](images/boosting/boosting_01.png)
+> Image caption: Adapted from "Machine Learning in Retail Credit Risk: Algorithms, Infrastructure, and Alternative Data — Past, Present, and Future" - NVIDIA
+
+As a challenger approach to WOE LR, Scotiabank's ML team proposed a boosting technique for credit scorecard development. Such models, as was demonstrated in the presentation, have the same positive properties of a linear model, yet are based on a more advanced tree-based estimation which yields substantial gains in scoring accuracy.
+
+In the next sections, we will explore how a prototype of a boosted scorecard can be built based on [FICO-xML-Challenge dataset](https://github.com/benoitparis/explainable-challenge/blob/master/heloc_dataset_v1.csv).
+
+<h2> How does it work? </h2>
+
+A boosted scorecard can be described as an ensemble of decision trees that are trained iteratively using the [gradient boosting algorithm](https://en.wikipedia.org/wiki/Gradient_boosting). In the context of credit decisioning, specific constraints such as monotonicity (to control for the relationship with the default rate) and interaction (to eliminate potential feature interactions) are often applied.
+
+Since we're working with a binary target variable, the predictions in leafs generated by each consecutive tree can be interpreted as log odds. Consequently, they can be converted into scorecard points, similar to the WOE LR approach as Weights and Biases' [notebook](https://colab.research.google.com/github/wandb/examples/blob/master/colabs/boosting/Credit_Scorecards_with_XGBoost_and_W%26B.ipynb) and [model card](https://wandb.ai/tim-w/credit_scorecard/reports/XGBoost-for-Interpretable-Credit-Models--VmlldzoxODI0NDgx) have shown.
+
+To demonstrate the application of boosted scorecards, we fit a model using a pre-defined set of features with monotonic trends from the [OptBinning library's example](http://gnpalencia.org/optbinning/tutorials/tutorial_binning_process_FICO_update_binning.html). Our simple boosted scorecard with a maximum tree depth of 1 consists of 45 individual trees. Below we can see the first five trees:
+
+![Image](images/boosting/boosting_02.png)
+> Image caption: Boosted scorecard: first 5 levels
+
+It can be seen from the table above that customers with a credit bureau score less than 74 are assigned 0 points, while those above 74 receive 24 points in the first iteration (Tree 0).
+We validate our scorecard by checking against XGBoost model's first and second tree plots:
+
+![Image](images/boosting/boosting_03.png)
+> Image caption: Boosted scorecard: first tree plot
+![Image](images/boosting/boosting_04.png)
+> Image caption: Boosted scorecard: second tree plot
+
+After fitting the scorecard, we can apply model predictions in scorecard points on the test data. The ultimate goal of scorecard development is to determine a cut-off point, which can be referred to as a "sweet spot," where most of the high-risk applicants are rejected while retaining the majority of low-risk applicants.
+
+We further visualize this threshold in the following chart:
+
+![Image](images/boosting/boosting_05.png)
+> Image caption: Boosted scorecard: cut-off
+
+As expected, a higher credit score corresponds to lower risk. By setting a cut-off point of less than ~30 points for our known good-bad population, we can reject approximately 80% of bad risk.
+
+<h2> Model interpretability </h2>
+
+A key advantage of boosted scorecards is their global and local interpretability. Since the final score is derived from the sum of points assigned to each feature in our scorecard, feature importances are straightforward and easy to calculate.
+
+We can visualize scorecard's custom feature importances below:
+
+![Image](images/boosting/boosting_06.png)
+> Image caption: Boosted scorecard: feature importances
+
+We can observe that external score has the highest impact on predictions following by delinquency and utilization features.
+
+To validate our results, we can further look at a similar diagram using the [SHAP](https://shap.readthedocs.io/en/latest/index.html) global importance plot, which is a common model-agnostic method for interpreting model results:
+
+![Image](images/boosting/boosting_07.png)
+> Image caption: Boosted scorecard: SHAP feature importances
+
+As we can see from the list of top features selected by SHAP, both methods yield highly consistent results, confirming the reliability and interpretability of the boosted scorecard model.
+
+<h2> Concluding remarks </h2>
+
+Explainability is a crucial element in credit decisioning, as consumers have the right to understand why their applications were rejected and to question the data and methods behind the decision. While scorecards based on linear models have traditionally been considered the gold standard for standardized and reliable credit risk assessment, a more advanced technique called scorecard boosting carries potential in boosting predictive power of models without sacrificing their explainability.
+ 
+<i>
+--
+
+The technical appendix with the code can be found in my [GitHub](https://github.com/deburky/boosting-scorecards).
+
+All views expressed are my own.
+</i>
+
+ ---
+
+## Leveraging Profit Scoring in Digital Loan Underwriting
+
+![Image](images/profit_scoring/profit_scoring_00.jpeg)
+> Profit scoring offers a promising alternative to credit scorecards by considering both creditworthiness and profitability aspects of loan applications as borrowers with low credit scores often possess untapped profitability potential. In the evolving landscape of digital lending, the shift from a narrow focus on credit scores to a more comprehensive profit-centric approach represents a significant step forward. By leveraging the power of profit scoring, lenders can align their interests more effectively with the needs of borrowers thus fostering a more inclusive and sustainable lending ecosystem.
+
+Traditional loan approval process relies heavily on consumers’ credit bureau scores, debt-to-income (DTI) ratios, and credit line usage patterns. Statistics about a customer’s past credit inquiries, loan delinquencies and repayment history are the most common drivers that signal lenders about who's going to pay back the loan. And yet, this approach puts customers with limited or no credit history at a disadvantage: important factors like consistent on-time utility payments (which could otherwise enhance creditworthiness) are often overlooked and not considered in lenders' scoring systems.
+
+Assessing structured underwriting data is one thing, but understanding the true risk beyond consumers’ credit scores is a whole different story. Traditional loan evaluation typically involves statistical or machine learning techniques to differentiate between good and bad loans based on their estimated probabilities of default (PD). As a result, these underwriting models automatically reject risky applicants below a specified cut-off point.
+
+However, relying solely on credit scoring systems that focus on predicting PD can result in the exclusion of the risky borrowers with a high profitability potential. In contrast, profit scoring models consider both the creditworthiness and profitability aspects of loan applications, eliminating the need for predetermined score cut-off points. This empowers lenders to selectively choose the most attractive customer base.
+
+Based on several academic papers written since 2016, profit scoring models have demonstrated superior performance in terms of returns and profits compared to PD models, primarily because they consider alternative factors when predicting investment returns. The silver lining is this: oftentimes borrowers with low credit scores have the potential to be as profitable as those with higher credit profiles when lenders adopt a holistic approach to assessing customer risk profiles.
+
+<h2> Profitability metrics </h2>
+
+In the domain of profit scoring, various metrics are commonly used to measure loan returns. The use of these metrics offers an advantage of a more detailed customer view, as they rely on a continuous measure instead of a binary one (default or no default). Such granularity allows for a more nuanced evaluation of loan performance since knowing that a customer is likely to default doesn't tell the whole story.
+
+A risk practitioner can come across several common profitability metrics such as Internal Rate of Return (IRR), Net Rate of Return (NRR), and Annualized Rate of Return (ARR). Among these metrics, ARR stands out as a strong candidate for risk modeling purposes due to its alignment with the 12-month Expected Credit Loss (ECL) framework ubiqitously used by lenders.
+
+We borrow the definition of ARR from Xia et al. (2017), which considers the principal amount, interest gain, and the number of years to calculate loan profitability as per the following formula:
+
+![Image](images/profit_scoring/profit_scoring_01.png)
+
+where:
+* P is the principal amount
+* G is the interest gain computed by multiplying the interest rate with the principal amount
+* N is the number of years
+
+For example, if one invests `€50` in a loan with a nominal interest rate of `9.98%` and a loan term of 3 years (36 monthly payments), the ARR calculation would be:
+
+![Image](images/profit_scoring/profit_scoring_02.png)
+
+One limitation of this formula, however, is that it does not incorporate loan-level cost of risk. To achieve that, we additionally exclude observed write-offs on the principal amount from the numerator and subtract ECL ratio provided by Pandora from the overall ARR to create a risk-adjusted ARR.
+
+<h2> Data </h2>
+
+The shift from credit score models to profit scoring models has been observed especially in the domain of P2P lending platforms. P2P lending involves individual lenders providing loans to individual borrowers through an online platform.
+
+P2P lending characterized by its inherent high-risk nature, with higher probability of default (PD) and loss given default (LGD) ratios compared to traditional lending. These elevated risks can be attributed to factors such as information asymmetry, the presence of unprofessional lenders on the platform, and the absence of collateralization.
+
+To build a prototype of a profit scoring model, we will utilize a real-world credit risk dataset obtained from Bondora, which is recognized as Europe's largest P2P lending platform. Bondora's loan dataset contains a large number of variables which can be used for building traditional credit risk models (PD, LGD) as well as profit scoring models. Please note that Bondora's proprietary profitability metric, XIRR (extended internal rate of return), is not available for public use.
+
+Sharing this data with practitioners could arguably aid efforts in building more accurate profit scoring models. Dataset description is available at [Bondora's website](https://www.bondora.com/en/public-reports#dataset-file-format).
+
+Below we can see the evolution of ARR and observed 12-month default rate for Bondora’s loan portfolio:
+
+![Image](images/profit_scoring/profit_scoring_03.png)
+
+We can observe a moderate correlation (43%) between the two time series due to the inclusion of the ECL ratio in the risk-adjusted ARR calculation.
+
+<h2> Experimental results </h2>
+
+After extensive data cleansing, we follow the conventional approach of train/test data splitting and estimating a scoring function.
+
+Below we can see the top-10 features that help to identify profitable loans. Among the top ones are Credit Score and Language Code (proxy for region of the borrower) as well as repayment history.
+
+The accuracy ratio ([Somers' D](https://en.wikipedia.org/wiki/Somers%27_D)) of our model on the test set is `61%` which can be considered fairly strong discrimination ability.
+
+![Image](images/profit_scoring/profit_scoring_04.png)
+
+We can also confirm that our model is relatively well calibrated showing a close match between observed and predicted values as can be seen from the following diagram:
+
+![Image](images/profit_scoring/profit_scoring_05.png)
+
+After fitting our model, our next goal is to cluster predictions into buckets to create ARR ratings, which are more intuitive to work with.
+The following diagram shows a comparison of observed profitability ratios across ARR ratings and PD ratings:
+
+![Image](images/profit_scoring/profit_scoring_06.png)
+
+As is often highlighted in the literature on profit scoring, PD in this case may not be an appropriate measure for identifying profitable loans. Although it is true that profitability drops in the worst ratings of ARR and PD alike, we can notice that customers in good ARR ratings (1-3) remain highly profitable across the PD master scale.
+
+Finally, since we have confidence in our model's estimates we can analyze what drove profitability down during the period of 2014-2015.
+
+The diagram below shows absolute differences between average SHAP values for each feature during the downturn period (2014-2015) vs non-stressed times (periods outside 2014-2015):
+
+![Image](images/profit_scoring/profit_scoring_07.png)
+
+We can observe that worsening external credit scores and smaller numbers of investment offers made by Portfolio Managers decreased the profitability metric during the stressed period.
+
+<h2> Concluding remarks </h2>
+
+Profit scoring offers a promising alternative to credit scorecards by considering both creditworthiness and profitability aspects of loan applications as borrowers with low credit scores often possess untapped profitability potential. In the evolving landscape of digital lending, the shift from a narrow focus on credit scores to a more comprehensive profit-centric approach represents a significant step forward. By leveraging the power of profit scoring, lenders can align their interests more effectively with the needs of borrowers thus fostering a more inclusive and sustainable lending ecosystem.
+
+<i>
+--
+
+The technical appendix with the code can be found in my [GitHub](https://github.com/deburky/profit-scoring). You can play around with the data in the Google Colab [notebook](https://colab.research.google.com/github/deburky/profit-scoring/blob/main/leveraging_profit_scoring.ipynb).
+
+</i>
+
+---
+
+## Understanding LGD Risk
+
+![Image](images/lgd/lgd_00.jpeg)
+> Modeling of LGD risk remains one of the least understood topics with limited regulatory guidance and academic literature on the subject. With a deeper understanding of LGD and its nuances, banks and risk practitioners can make informed decisions regarding capital allocation, loan pricing, and credit portfolio management. By understanding the underlying complexities, continuously advancing LGD modeling methodologies and promoting knowledge-sharing, we can drive innovation and improve risk management practices in the ever-evolving credit risk model landscape.
+
+The Loss Given Default (LGD) is a credit risk parameter that plays an important role in contemporary banking risk management practices. The aim of an LGD risk management model is to accurately and efficiently quantify the level of LGD risk for a loan which goes into default or which percentage of the exposure at default (EAD) will be subject to economic loss for the lender.
+
+The LGD parameter directly influences key risk management decisions, including capital allocation, loan pricing, and overall credit portfolio management. Consequently, LGD models find widespread applications in areas such as Risk-Weighted Assets (RWA) calculation, expected credit loss estimation, pricing, and distressed assets management strategies.
+As a result, LGD modeling stands as one of the most interesting yet challenging problems in Credit Risk Management, often remaining least understood beyond the realm of Advanced IRB risk modelers. While ample research on the backtesting of Probability of Default (PD) models exists, literature on similar backtesting methods for LGD models is quite scarce, and very few studies of LGD explore alternative modeling methodologies, including those leveraging Machine Learning (ML) techniques.
+
+Furthermore, the absence of comprehensive regulatory guidelines regarding LGD model development has resulted in varying levels of consistency in LGD modeling practices. In this article, we will delve into the fundamentals of LGD, exploring its definition and significance, while also examining alternative approaches utilized in LGD estimation.
+
+<h2> LGD methodologies </h2>
+
+![Image](images/lgd/lgd_01.png)
+
+The LGD parameter represents the ratio of economic loss to the total outstanding amount of a loan (EAD). For example, an LGD of 50% would mean that for a loan with an EAD of €10,000, €5,000 is expected to be non-recoverable after the default. Compared to PD models which are trained on performing loans, LGD is about what happens after the default occurs as the chart above illustrates.
+
+Broadly speaking, the LGD parameter can be categorized into two types: market LGD and workout LGD. Market LGD is calculated based on market data, while workout LGD takes into account a bank's internal recovery history. It's the workout LGD that is the primary focus of risk model developers.
+To accurately model LGD internally, financial institutions employ two primary approaches: LGD Long-Run models for performing loans (customers who are not in default) and LGD In-Default models for non-performing loans (customers who have defaulted).
+
+LGD Long-Run Models estimate the loss given default for loans that are not in default at the time of model application but have historically defaulted within 12 months after the reference date. In LGD Long-Run models, risk drivers are typically collected as of the date 12 months prior to the default date or the earliest date if the default occurred within 12 months of loan origination (which is oftentimes driven by fraud).
+LGD In-Default Models estimate the loss given default for credit claims that have already defaulted at the time of model application. The vintage approach is often employed in LGD In-Default models, where data is collected at each month after the default date, and a time variable is introduced as an additional risk driver.
+
+For both approaches mentioned above, LGD can be modeled directly or indirectly, i.e. using sub-model components.
+
+The formula for the direct approach is presented below:
+
+![Image](images/lgd/lgd_02.png)
+
+In the formula above, economic loss is defined as a difference between total outstanding loan amount (EAD) and the sums of discounted recovery cash-flows and costs.
+
+Another approach to modeling LGDs is the indirect approach (also referred to as "LR-CR" approach) which is used to further modularize the LGD parameter into the loss and cure components.
+
+An example of the indirect approach is visualized below:
+
+![Image](images/lgd/lgd_03.png)
+
+This approach allows to factor in the cured LGDs (LGDs for customers who exited the default status) as well as the modeled probability of such a cure event. Other scenarios like foreclosure / debt sale can also be considered as other sub-model components depending on the internal recovery experience of an institution. This type of design of LGD models allows to make estimates more accurate albeit at the cost of increased model complexity and maintenance.
+
+Depending on the type of lending products in a portfolio, LGD risk can be further split into the secured (collateralized) and unsecured parts of the exposure. The formula for deriving the overall LGD is described below:
+
+![Image](images/lgd/lgd_04.png)
+
+The structure of the LGD model thus can become an increasingly ambitious task depending on the goals of a risk modeller (regulatory capital, managerial purposes) and data collection efforts. For secured LGDs, collateral haircut modeling is often utilized which is beyond the scope of this post.
+
+<h2> LGD modeling </h2>
+
+One distinctive characteristic of LGD modeling is the bimodal (or U-shaped) nature of the target variable. In practice, the peaks at 0% and 100% in the data are observed due to defaults that end with a cure event or are fully collateralized, resulting in minimal or no loss realization.
+
+![Image](images/lgd/lgd_05.png)
+
+Additionally, such different LGD behaviors can be observed due to the varying recovery rates observed across different lending products, collateral quality, and the effectiveness of collection and recovery strategies. It is worth mentioning that poor data quality can cause additional outliers in the LGD distribution.
+
+The most commonly used methods for modeling of LGDs are linear regression (including robust and quantile regression as extensions to handle outliers) and decision trees. Decision trees are particularly favored by banks because they offer interpretability, and the leaf values can be directly interpreted as LGD grades.
+
+In this example, we will test several modeling methods using the [Lending Club dataset on defaulted loans](https://github.com/shawn-y-sun/Credit_Risk_Model_LoanDefaults). The target variable for our LGD model was constructed by the author using the direct approach with discounting of recovery cash-flows using a contract interest rate and an expert-based maximum recovery period of 3 years (36 months).
+
+The following methods were employed to model LGD risk:
+* Linear regression
+* Weight-of-Evidence Logistic Regression (WOE LR)
+* Constrained LightGBM
+
+With regards to WOE LR approach, we rely on Van Berkel and Saddiqi's approach of creating an LGD scorecard similar to the good-bad analysis in PD models.
+
+<h2> LGD testing </h2>
+
+Until now, no shared understanding of universal measures of discriminatory power for LGD models has been established among lenders and supervisors. Among some of the most common metrics of assessing discrimination ability of LGD models are rank correlation coefficients such as Somers' D, Spearman Rho, and Kendall's Tau, which, however, lack an intuitive visual representation similar to the Cumulative Accuracy Profile (CAP) and the Gini coefficient for PD models.
+
+To fill in this gap, a modified Accuracy Ratio metric has been introduced under the name of cumulative LGD accuracy ratio (CLAR) in several works, most notably in Ozdemir and Miu (2009). CLAR is the measure of discrimination strength for a risk model and is similar to the Gini score.
+
+One useful benefit of this metric is its visual representation in the form of a CLAR curve, which is conceptually similar to the Cumulative Accuracy Profile (CAP) in a Gini test.
+
+![Image](images/lgd/lgd_06.png)
+
+The CLAR curve provides a visual link between the cumulative percentage of correctly assigned realized LGDs (y-axis) and the cumulative percentage of observations in the predicted LGD bands (x-axis). In an ideal scenario, where the rank-ordering is perfect, the CLAR curve would align with the 45-degree line, indicating a perfect match between predicted and realized LGDs. However, in practice, deviations between predicted and realized LGDs result in the CLAR curve lying below the 45-degree line, indicating less than perfect rank ordering.
+
+The CLAR coefficient, calculated as twice the area under the CLAR curve, ranges from 0 to 1, with 1 representing perfect discriminatory power. It is important to note that one of the key benefits of the CLAR score is that it can be used for benchmarking the performance of an LGD scoring model alternatives.
+
+Below, the CLAR curves of the three models we tested are presented:
+
+![Image](images/lgd/lgd_07.png)
+
+As can be seen from the chart above, LightGBM model produces the most accurate LGD estimates showing the closest proximity to the ideal 45-degree line. However, it's worth mentioning that while it's built using monotonicity constraints to preserve causal knowledge with the target variables, this tree-based model will still be less interpretable compared to linear and logistic regressions which may be an important factor during the regulatory approval.
+
+<h2> Concluding remarks </h2>
+
+Modeling of LGD risk remains one of the least understood topics with limited regulatory guidance and academic literature on the subject. With a deeper understanding of LGD and its nuances, banks and risk practitioners can make informed decisions regarding capital allocation, loan pricing, and credit portfolio management. By understanding the underlying complexities, continuously advancing LGD modeling methodologies and promoting knowledge-sharing, we can drive innovation and improve risk management practices in the ever-evolving credit risk model landscape.
+
+<i>
+--
+
+The technical appendix with the code can be found in my [GitHub](https://github.com/deburky/lgd-scoring-models).
+
+</i>
+
+---
+
+## Unlocking Lending Profitability with Risk Modeling
+
+![Image](images/lending/lending_00.jpeg)
+> Recent success stories within the digital banking space emphasize the leading role of lending products, surpassing fee-based services, in attaining profitability. The lessons learned from digital lenders emphasize the significance of accurate credit risk assessment, influencing everything from pricing to decision-making. As the industry continues to evolve, embracing the foundational aspects of credit risk management and adept underwriting will remain essential for digital banks' sustained growth and resilience.
+
+In earlier times, access to banking services required direct in-person communication with a bank officer. The outcomes frequently depended on the dynamics of individual relationships: this evokes the image of a bank clerk, reminiscent of a scene from "The Wolf of Wall Street", making pivotal choices regarding matters such as opening a checking account.
+
+![Image](images/lending/lending_01.jpeg)
+
+Fast forward to now, with the growing use of digital channels and deeper automation of financial services provisioning, more people gained access to online banking, and digital players are utilizing growing amounts of digitally collected data to tailor customers’ product needs and offer a best in-class banking experience.
+
+Notwithstanding tech innovation achieved in recent decades, today’s digital banking remains a <b>balance sheet-driven business</b>, and profitability hinges on a company’s ability to operate a sustainably <b>profitable lending franchise</b>. Although <b>fee-driven products</b> (e.g., payments and crypto) may be effective in helping digital banks scale quickly, that alone may not drive profitability due to lower margins and narrower focus of these offerings.
+
+<b>Lending products</b>, on the other hand, carry greater monetization potential. Building a strong collection of deposits and offering effective loan options is key to creating a profitable bank.
+
+> But loans aren't just products – they're instruments for consumers to achieve their dreams such as buying a first home or preparing for a big life event. Loans enable future wishes to become possible right now.
+
+Looking at recent history one can notice that profitable digital banks started to become successful more quickly over time. In the early 2000s, it took about 46 months for digital banks to start making money, but [banks founded after 2014 took only about 25 months on average to become profitable](https://www.spglobal.com/marketintelligence/en/news-insights/research/strong-interest-income-tips-the-scale-for-digital-banks-in-europe-asia), and most of the profit comes from the net interest income earned on loans.
+
+Given these resonating success stories (which to a large extent are examples of a "survivorship" bias), this [Forbes article](https://www.forbes.com/sites/julianteicke/2023/06/21/how-fintech-startups-can-pivot-to-profitability-despite-any-recession/?sh=5af0c8d43dc9) even went on to advise banks to aim to hit profitability within the next 18 months.
+
+![Image](images/lending/lending_02.png)
+
+> [WhiteSight: Cracking the profitability code of successful digital banks](https://whitesight.net/digital-banks-profitability-2023/)
+
+> Ok. But if everything is very straightforward and the business model has been around for decades, why is lending hard?
+
+Unfortunately, [lending is not (and probably will never be) be easy to unlock](https://workweek.com/2023/03/02/unlocking-lending-innovation/). According to many industry surveys and stories from lenders researched, there are no shortcuts to mastery in this domain, and many small things need to be done well – just as in manufacturing.
+
+There is an interesting [Upstart podcast](https://info.upstart.com/tony-hejna-ep-90) about this. Tony Hejna from KeyBank talks about a Fintech division that worked separately from a bank: this division had its own IT, underwriting, and collections teams who together navigated through fraud and evolution over the course of 10 years. The takeaway for the new owner was something like: "We want the results that they’re having but we don’t really appreciate what it took to build an infrastructure over 10 years to get there".
+
+![Image](images/lending/lending_03.jpeg)
+
+The unique process of financial institutions learning through trial and error is part of the reason why we don’t see mass-market manufacturing innovation in lending. Yet, there's another crucial element that often goes unnoticed in many success stories, which is their internal ways of figuring out who to give loans to. At least two factors contribute to an effective loan mechanism: <b>an accurate credit underwriting engine</b> and <b>risk-based loan pricing</b>. In order not to incur excessive losses, banks must properly calibrate risk models to determine appropriate pricing rules.
+
+The chart below illustrates a relationship between the interest rate of a loan and a probability of default (PD). If a bank fails to estimate credit risk correctly, it either overprices loans and loses its market share, or sets interest rates too low to cover the expected losses, which leads to poor financial results as [Klarna’s loss-making experience since 2019 has shown](https://www.ft.com/content/46f2fff1-846b-48bb-adfb-805e916a6b47?segmentID=09cf3415-e461-2c4a-a8cc-80acc4846679).
+
+![Image](images/lending/lending_04.png)
+
+Therefore, accurate credit risk assessment affects an organization's balance sheet and income statement, since credit risk strategy determines pricing, and might even influence seemingly unrelated domains, e.g. marketing and decision-making. One lesson from successful lenders is to focus on getting the basics right (adapted from [Tinkoff Consumer Finance Strategy Day Presentation](https://acdn.tinkoff.ru/static/documents/531e35e8-a97c-4379-ad14-7297f405ec46.pdf)):
+
+![Image](images/lending/lending_05.png)
+
+To effectively manage their lending business, banks must utilize high quality credit-risk data, which serves as the foundation for modeling credit risk and devising efficient underwriting strategies. These strategies encompass various aspects such as managing limits, setting aside funds for potential loan losses, overseeing collections, and vigilantly tracking and reporting loan performance, among other critical functions in [the lending workflow](https://t1a.medium.com/ml-ds-shades-of-credit-risk-management-part-i-1537a8bf2f3).
+
+
+![Image](images/lending/lending_06.jpeg)
+
+<h2> Concluding remarks </h2>
+
+Recent success stories within the digital banking space emphasize the leading role of lending products, surpassing fee-based services, in attaining profitability. The lessons learned from digital lenders emphasize the significance of accurate credit risk assessment, influencing everything from pricing to decision-making. As the industry continues to evolve, embracing the foundational aspects of credit risk management and adept underwriting will remain essential for digital banks' sustained growth and resilience.
+
+---
+
+## Benchmarking PD models
+
+![Image](images/benchmarking/benchmarking_00.jpeg)
+> Benchmarking PD models with similar rank-ordering power based on alternative metrics can help in identifying most promising models with higher payouts of model use. Utilizing a combination of scoring rules and business metrics enables risk practitioners to look beyond Gini scores in search of the best scoring model.
+
+When evaluating various scoring functions for the Probability of Default (PD) modeling, the most commonly assessed performance metric is the Gini score. The Gini score measures the rank-ordering power of the model, which helps determine how effectively the model can identify default observations based on the order of its predictions. A Gini score of 1 indicates perfect discrimination ("crystal ball" performance), while a score of 0 implies no discriminatory power. However, in certain scenarios, the Gini coefficient can be a misleading metric and could lead to a selection of a less optimal model.
+
+Imagine a situation where two scoring functions, WOE Logistic Regression (WOE LR) and XGBoost, perform similarly in terms of the Gini score (Gini = 2 * AUC - 1):
+
+![Image](images/benchmarking/benchmarking_01.png)
+
+In this scenario, a common method of model evaluation beyond the Gini coefficient is to establish a classification rule based on a probability model and assess the outcomes using a cost-benefit analysis. This analysis involves assigning fixed costs and benefits based on the costs of misclassification at a predetermined cut-off.
+
+![Image](images/benchmarking/benchmarking_02.png)
+
+Given that this approach requires setting a specific cut-off point for classifying a prediction as being correct (e.g., 4% or 50%), it's not guaranteed that a model selected using this method would perform similarly on the new data when the underlying distribution of the target variable is different from the training dataset.
+
+<h2> Log Loss </h2>
+
+One metric for assessing PD model performance that is not so often discussed is a logarithmic scoring rule, more known as Log Loss:
+
+![Image](images/benchmarking/benchmarking_03.png)
+
+Log Loss measures the proximity of predictions to the true labels and is a common loss function in model estimation methods such as Logistic Regression and Gradient Boosted Decision Trees. Additionally, this metric is employed to assess the calibration of forecasts.
+
+Log Loss assigns more weight to predictions that are "correct". When predictions deviate significantly, for example, when the predicted probability is 0.99 for a "good" customer (default flag is 0) or 0.01 for a "bad" customer (default flag is 1), we observe large loss values, indicating lower accuracy of our predictions:
+
+![Image](images/benchmarking/benchmarking_04.png)
+
+Alternatively, if the predicted probabilities are close to the true labels of default event, the loss will be close to 0 indicating high accuracy of our predictions:
+
+![Image](images/benchmarking/benchmarking_05.png)
+
+Below Loss curves for the two scoring functions with similar Gini scores are shown:
+
+![Image](images/benchmarking/benchmarking_06.png)
+
+We can observe that Loss curves for our models are quite similar, but there are differences in the lower probability range for the defaulted cases (left chart) and in the upper probability range of the non-defaulted cases (right chart) where loss values are high indicating inaccuracies. Naive loss corresponds to a forecast of a sample average default rate (50%) for each observation.
+
+Looking at these results it is difficult to draw a conclusion whether one model is preferable over the other.
+
+<h2> Loss Uplift </h2>
+
+There is a way how we can compare two Loss metrics to benchmark the two models using a Loss uplift metric:
+
+![Image](images/benchmarking/benchmarking_07.png)
+
+The Loss uplift metric is conceptually similar to Normalized Cross Entropy from He X. et al. 2014 paper, but here we benchmark our challenger model against a baseline model and not a "random guess" or naive prediction model (e.g., assigning 50% probability for every observation).
+
+Essentially, Loss uplift an arithmetic average of the absolute differences between Log Loss values of the two models for each prediction. Negative values indicate better performance compared to the baseline and vice versa.
+In our example, we will benchmark WOE LR (challenger) against XGBoost (baseline).
+
+Loss uplift can be calculated for each class separately and on the overall level, the results are reported below:
+
+* Uplift goods (class = 0): -0.20%
+* Uplift bads (class = 1): -0.02%
+* Uplift: -0.10%
+
+The metrics above show that WOE LR has a lower error and has an improved performance for both classes.
+
+<h2>Business metric</h2>
+
+To visualize the Loss uplift, we will create a business metric based on a cost-benefit analysis with the following logic in mind:
+
+* We assign <b>€100</b> when our challenger model predicted a <b>higher probability</b> for <b>Class 1</b> vs the baseline and <b>-€100</b> otherwise
+* We assign <b>+€50</b> when our challenger model predicted <b>lower probability</b> for <b>Class 0</b> vs the baseline and <b>-€50</b> otherwise
+
+This approach allows us to give a graphical representation in the form of Payout curves for the Loss uplift metric:
+
+![Image](images/benchmarking/benchmarking_07.png)
+
+What we observe in the chart above that most of the payout is coming from the improvements in prediction accuracy for defaulters in the probability range > 70%. Due to a higher weight (€100) used for defaulted observations, we can see that our choice in selecting WOE LR would be warranted from a business perspective.
+
+Total payout of using the challenger vs the baseline amounts to <b>+€20,300</b>.
+
+<h2>Concluding remarks</h2>
+
+Benchmarking PD models with similar rank-ordering power based on alternative metrics can help in identifying most promising models with higher payouts of model use. Utilizing a combination of scoring rules and business metrics enables risk practitioners to look beyond Gini scores in search of the best scoring model.
+
+<i>
+--
+
+The technical appendix with the code can be found in this [notebook](https://github.com/deburky/boosting-scorecards/blob/main/other_notebooks/benchmarking_pd_models.ipynb).
+
+</i>
+
+---
+
+## Building Random Forest Scorecards
+
+![Image](images/random_forest/random_forest_00.jpeg)
+> Random Forests are not common candidates for credit risk models due to their intrinsic randomness, which impedes interpretability, a critical requirement in high-risk predictive modeling domains such as credit scoring. A non-conventional approach to scorecard building based on Random Forests can enable risk practitioners to explore and discover valuable customer risk segments and craft predictive features for risk management models further optimizing risk strategies.
+
+In the lending industry and credit risk research, a risk practitioner can often encounter Weight-of-Evidence logistic regressions (WOE LR) or various versions of gradient boosted trees (GBDT) used for standardized credit risk assessments. However, implementations of Random Forests for Probability of Default (PD) scoring are not as common, which can be partially attributed to the algorithm's inherently random nature, which may not be well-suited for predictive modeling in high-risk domains, especially perceived as such by regulatory authorities.
+
+To the best of the author's knowledge, there have been no attempts to incorporate Random Forests into scorecard methodologies. To this end, this post aims to bridge this gap by demonstrating how Random Forest scorecards can be developed and highlighting several potential benefits they offer for the risk model development and validation process.
+
+<h2> Random forest scorecards </h2>
+
+![Image](images/random_forest/random_forest_01.png)
+> Image caption: Random Forest Scorecard (2 trees per forest)
+
+Famous gradient boosting algorithms such as XGBoost or LightGBM include several types of base learners, including linear trees and random forests. In case of [linear trees](https://lightgbm.readthedocs.io/en/latest/Parameters.html#linear_tree) as base estimators, the idea is to estimate a linear regression within each leaf of a decision tree rather than use a constant value in a leaf. Although using this feature can boost performance in some scenarios, it can also break monotonicity of the risk score regardless of monotonic constraints and is much more difficult to interpret.
+
+In contrast, the utilization of random forests as base learners remains relatively unexplored, with even official [XGBoost documentation](https://xgboost.readthedocs.io/en/stable/tutorials/rf.html#standalone-random-forest-with-xgboost-api) providing limited insights. According to the documentation, a parameter named num_parallel_tree allows the use of a combination of trees (a forest) instead of a single decision tree. Notably, when both num_parallel_tree and num_boost_round (the number of iterations) exceed 1, training incorporates a blend of random forests and gradient boosting.
+
+This interesting combination allows to construct random scoring sub-models that are incorporated into a larger model. To further enhance interpretability and readability of the model outputs, these sub-models and their components can be converted into a scorecard format. This approach is particularly useful when crafting 2-level models, where each tree can perform at most two splits (max_depth=2).
+
+Below is an example featuring four trees forming the first two random forests within the scorecard. In XGBoost's implementation, each unique tree produces log-odds scores, which are subsequently aggregated into a forest by means of summation of margins (please see the technical appendix for more details). We then transform these log-odds scores into a traditional scorecard that assigns higher scores for good risk and lower scores for bad risk accordingly.
+
+![Image](images/random_forest/random_forest_02.png)
+> Image caption: Random Forest Scorecard (2 forests with each tree having a depth of 2)
+
+<h2> Practical applications of Random Forest scorecards </h2>
+
+One can think of several practical applications of this modeling technique, including:
+
+* <b>Feature engineering:</b> By applying random subsampling, each tree within a Random Forest model is trained only on subsets of the original data. This capability of decorrelating trees is invaluable for feature engineering leading to more robust and predictive risk models.
+* <b>Segmentation:</b> Random Forest scorecards can uncover hidden patterns within the underwriting data. This data-driven approach empowers risk practitioners to fine-tune credit policies and discover unique customer risk segments thus optimizing risk management strategies.
+* <b>Model validation:</b> When conducting model validation exercises and other model risk management tasks, Random Forest scorecards offer a versatile toolkit. They facilitate the creation of various model challengers, making it easier to identify opportunities for model improvement and robustness enhancement.
+
+In the example below, we illustrate how such a scoring model can be employed for risk management purposes. Notably, Tree 4, 5, and 8 stand out with individual Gini scores exceeding 50%.
+
+![Image](images/random_forest/random_forest_03.png)
+> Image caption: Gini scores of a Random Forest scorecard components
+
+By aggregating the scores from these influential components, we can achieve a Gini score of <b>70%</b>. This composite score retains <b>93%</b> of the rank-ordering power of the final model, as indicated by the last bar. Arguably, this approach is much faster and more efficient than a traditional analysis of univariate correlations and exclusion of features with lower rank-ordering power from the combination.
+
+<h2> Concluding remarks </h2>
+
+Random Forests are not common candidates for credit risk models due to their intrinsic randomness, which impedes interpretability, a critical requirement in high-risk predictive modeling domains such as credit scoring. A non-conventional approach to scorecard building based on Random Forests can enable risk practitioners to explore and discover valuable customer risk segments and craft predictive features for risk management models further optimizing risk strategies.
+
+<i>
+--
+
+The technical appendix with the code can be found in this [notebook](https://github.com/deburky/boosting-scorecards/blob/main/other_notebooks/building_random_forest_scorecards.ipynb).
+
+</i>
+
+---
+
+## Balancing Risk and Profit
+
+![Image](images/risk_profit/risk_profit_00.jpeg)
+> Profit-based credit models are seen as a shift away from classical credit risk modeling in the lending industry, and there is a growing interest in these models among lenders to complement traditional risk assessments. At the same time, profit scoring can be seen as a combination of loss and revenue modeling resembling credit scoring models in many aspects, including model performance assessments with power curves.
+
+Understanding profit independently of risk is increasingly vital for lenders to create monetary value through proper risk assessments [1]. As lenders strive to maximize profitability of their investments in ever-changing economies, reliance on conventional credit scores for loan decisions raises questions about their optimality from a business perspective. As such, the interplay between risk and profit captured in profit-based credit models may offer a fresh perspective on decision-making in lending and has a potential to reshuffle banks' loan portfolios [2].
+
+To illustrate this problem, consider the following example. In practice, risk scores are oftentimes converted into meaningful risk buckets (or risk grades), enabling credit risk management at an aggregate level. We utilize the [OptBinning](http://gnpalencia.org/optbinning/) library to construct a risk rating scale from a synthetic credit risk dataset. The resulting credit score boundaries are shown in the chart below. From this visualization, scoring analyst would most likely derive a value around 580 as a cut-off point.
+
+![Image](images/risk_profit/risk_profit_01.png)
+
+Given the available revenue and loss data on account level, we can enhance this analysis with a profitability assessment for each risk grade. We can use a Weight-of-Evidence (WOE) technique for this: we determine the proportion of revenue within a specific risk grade X relative to the total revenue, and the proportion of losses within that same risk grade X relative to the total loss. By taking the logarithm of the ratio of revenue to loss, we can establish a log-odds profit score, which represents an average profit score for each risk grade.
+
+With this metric in focus, the chart below shows a slightly different picture compared to the standard good-bad distribution. From the diagram below we can see that a cut-off can be seen at around 534 points at a profit rate of ~50%. This highlights the main problem with using credit scores for profitability assessment: they cut off a significant share customers which can potentially generate positive returns.
+
+![Image](images/risk_profit/risk_profit_02.png)
+
+Finding a sweet spot between risk and reward is thus a challenging problem. One solution is to develop a standalone profit model for capturing more complex relationships between profit and risk. Since profit models may not have as many underlying economic assumptions as credit scoring models, machine learning models are good candidates for profit modeling. In this context, profit scoring is seen as a regression problem seeking to predict and make lending decisions on a numerical profit measure [1]. The target variable of a model is NPV defined as a difference between revenues and losses on account level without discounting [2].
+
+For this synthetic dataset (enriched with loan repayment data from Lending Club) an R2 score of 56% and a Somers' D of 51% are achieved with a Random Forest similar to results presented in [2]. We can observe some interesting interactions between the features in the model. For example, a partial dependence plot below illustrates that a significant portion of unprofitable loans corresponds to high-ticket exposures with utilization rates exceeding 60% (proxy for default), while within the 60-80% utilization range there are still profitable loans with smaller ticket sizes.
+
+![Image](images/risk_profit/risk_profit_03.png)
+
+To understand the performance of a model we can employ power curves which are commonly used in credit risk modeling. For this problem, visualizing model performance in a way similar to ROC-AUC curves is challenging due to both positive and negative profit values. A more convenient approach is to assess its discriminatory power for revenues and losses separately. We can quantify the rank-ordering power of a model by measuring how effectively the model ranks revenues or losses compared to a random model (ranging model's predictions in descending and ascending order accordingly). The following chart illustrates areas under the curve (AUC) for revenues and losses.
+
+![Image](images/risk_profit/risk_profit_04.png)
+
+It can be seen from the chart above that the model demonstrates a higher level of discrimination ability in predicting losses showing performance similar to a credit scoring model. The average of the two AUC scores gives a similar result to the model's gAUC (~75%) derived a Somers D score, which confirms intuition behind the overall model performance.
+
+Profit-based credit models are seen as a shift away from classical credit risk modeling in the lending industry, and there is a growing interest in these models among lenders to complement traditional risk assessments. At the same time, profit scoring can be seen as a combination of loss and revenue modeling resembling credit scoring models in many aspects, including model performance assessments with power curves.
+
+<i>
+--
+
+The technical appendix with the code can be found in [this notebook](https://github.com/deburky/boosting-scorecards/blob/main/other_notebooks/balancing_risk_and_profit.ipynb).
+
+</i>

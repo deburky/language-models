@@ -1,0 +1,26 @@
+[project]
+name = "credit-knowledge"
+version = "0.1.0"
+description = "Credit knowledge base application"
+readme = "README.md"
+authors = "Denis Burakov"
+license = "MIT"
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi>=0.115.11",
+    "langchain-community>=0.3.18",
+    "langchain-huggingface>=0.1.2",
+    "langserve>=0.3.1",
+    "openai==0.28.1",
+    "orjson>=3.10.15",
+    "pydocstyle>=6.3.0",
+    "python-dotenv>=1.0.1",
+    "rich>=13.9.4",
+    "ruff>=0.9.9",
+    "sentence-transformers>=3.4.1",
+    "sqlite-vec>=0.1.6",
+    "sqlite-vss>=0.1.2",
+    "sse-starlette>=2.2.1",
+    "tomli>=2.2.1",
+    "uvicorn>=0.34.0",
+]
