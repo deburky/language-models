@@ -22,7 +22,7 @@ if not os.path.exists("db"):
     os.makedirs("db")
 
 # # create the open-source embedding function
-embedding_function =  HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+embedding_function = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 # # load it in sqlite-vss
 db = SQLiteVSS.from_texts(

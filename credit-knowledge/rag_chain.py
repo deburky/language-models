@@ -70,8 +70,6 @@ def retrieve_docs(query: str):
     return results
 
 
-
-
 def build_rag_chain():
     retriever = RunnableLambda(
         lambda query: {"query": query, "docs": retrieve_docs(query)}

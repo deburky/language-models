@@ -1,4 +1,4 @@
-# 📑 Credit Knowledge Base AI App
+# 📑 Credit Knowledge AI App
 
 **Author:** [Denis Burakov (@deburky)](https://github.com/deburky)  
 
@@ -51,7 +51,7 @@ curl -X POST http://localhost:8000/query \
    -d '{"query": "What is AI underwriter?"}'
 ```
 
-Or using RAG Chain from LangServe:
+Using RAG Chain from LangServe:
 
 ```zsh
 curl -X POST http://localhost:8000/rag-chain/invoke \
