@@ -63,7 +63,7 @@ print(f"Found {len(file_paths)} files to embed...")
 
 # 5. Embed each file manually
 embedded_data = []
-for path in tqdm(file_paths, desc="Embedding files"):
+for path in tqdm(file_paths[:10], desc="Embedding files"):
     print(f"Embedding: {path}")
     data = embed_anything.embed_file(
         file_name=path,

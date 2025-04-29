@@ -1,7 +1,7 @@
 [project]
 name = "gpt-etl"
 version = "0.1.0"
-description = "Add your description here"
+description = "ChatGPT ETL + RAG Playground"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
