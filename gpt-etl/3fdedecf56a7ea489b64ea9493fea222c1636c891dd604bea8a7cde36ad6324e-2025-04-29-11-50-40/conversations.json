@@ -1,0 +1,452 @@
+[
+  {
+    "title": "Data Science in Credit Scoring",
+    "create_time": 1745331686.921647,
+    "update_time": 1745919497.016058,
+    "mapping": {
+      "client-created-root": {
+        "id": "client-created-root",
+        "message": null,
+        "parent": null,
+        "children": ["16b2b301-96ce-4574-a373-f5f7a1096d7e"]
+      },
+      "16b2b301-96ce-4574-a373-f5f7a1096d7e": {
+        "id": "16b2b301-96ce-4574-a373-f5f7a1096d7e",
+        "message": {
+          "id": "16b2b301-96ce-4574-a373-f5f7a1096d7e",
+          "author": {
+            "role": "system",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": null,
+          "update_time": null,
+          "content": {
+            "content_type": "text",
+            "parts": [""]
+          },
+          "status": "finished_successfully",
+          "end_turn": true,
+          "weight": 0.0,
+          "metadata": {
+            "is_visually_hidden_from_conversation": true
+          },
+          "recipient": "all",
+          "channel": null
+        },
+        "parent": "client-created-root",
+        "children": ["0f36b5d4-ecb2-456c-93d3-e7d82fb958fe"]
+      },
+      "0f36b5d4-ecb2-456c-93d3-e7d82fb958fe": {
+        "id": "0f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+        "message": {
+          "id": "0f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+          "author": {
+            "role": "user",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": null,
+          "update_time": null,
+          "content": {
+            "content_type": "text",
+            "parts": ["How is data science used in credit scoring?"]
+          },
+          "status": "finished_successfully",
+          "end_turn": true,
+          "weight": 0.0,
+          "metadata": {},
+          "recipient": "all",
+          "channel": null
+        },
+        "parent": "16b2b301-96ce-4574-a373-f5f7a1096d7e",
+        "children": ["1f36b5d4-ecb2-456c-93d3-e7d82fb958fe"]
+      },
+      "1f36b5d4-ecb2-456c-93d3-e7d82fb958fe": {
+        "id": "1f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+        "message": {
+          "id": "1f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+          "author": {
+            "role": "assistant",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": null,
+          "update_time": null,
+          "content": {
+            "content_type": "text",
+            "parts": ["Data science is used in credit scoring to analyze large datasets and identify patterns that can predict a borrower's creditworthiness. Techniques like machine learning models are employed to assess risk and make informed lending decisions."]
+          },
+          "status": "finished_successfully",
+          "end_turn": true,
+          "weight": 0.0,
+          "metadata": {},
+          "recipient": "all",
+          "channel": null
+        },
+        "parent": "0f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+        "children": []
+      }
+    }
+  },
+  {
+    "title": "Improving Credit Scoring Models",
+    "create_time": 1745331687.921647,
+    "update_time": 1745919498.016058,
+    "mapping": {
+      "client-created-root": {
+        "id": "client-created-root",
+        "message": null,
+        "parent": null,
+        "children": ["26b2b301-96ce-4574-a373-f5f7a1096d7e"]
+      },
+      "26b2b301-96ce-4574-a373-f5f7a1096d7e": {
+        "id": "26b2b301-96ce-4574-a373-f5f7a1096d7e",
+        "message": {
+          "id": "26b2b301-96ce-4574-a373-f5f7a1096d7e",
+          "author": {
+            "role": "system",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": null,
+          "update_time": null,
+          "content": {
+            "content_type": "text",
+            "parts": [""]
+          },
+          "status": "finished_successfully",
+          "end_turn": true,
+          "weight": 0.0,
+          "metadata": {
+            "is_visually_hidden_from_conversation": true
+          },
+          "recipient": "all",
+          "channel": null
+        },
+        "parent": "client-created-root",
+        "children": ["1f36b5d4-ecb2-456c-93d3-e7d82fb958fe"]
+      },
+      "1f36b5d4-ecb2-456c-93d3-e7d82fb958fe": {
+        "id": "1f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+        "message": {
+          "id": "1f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+          "author": {
+            "role": "user",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": null,
+          "update_time": null,
+          "content": {
+            "content_type": "text",
+            "parts": ["What are some ways to improve credit scoring models?"]
+          },
+          "status": "finished_successfully",
+          "end_turn": true,
+          "weight": 0.0,
+          "metadata": {},
+          "recipient": "all",
+          "channel": null
+        },
+        "parent": "26b2b301-96ce-4574-a373-f5f7a1096d7e",
+        "children": ["2f36b5d4-ecb2-456c-93d3-e7d82fb958fe"]
+      },
+      "2f36b5d4-ecb2-456c-93d3-e7d82fb958fe": {
+        "id": "2f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+        "message": {
+          "id": "2f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+          "author": {
+            "role": "assistant",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": null,
+          "update_time": null,
+          "content": {
+            "content_type": "text",
+            "parts": ["Improving credit scoring models can involve incorporating more diverse data sources, using advanced machine learning algorithms, and continuously validating and updating the models to reflect current economic conditions."]
+          },
+          "status": "finished_successfully",
+          "end_turn": true,
+          "weight": 0.0,
+          "metadata": {},
+          "recipient": "all",
+          "channel": null
+        },
+        "parent": "1f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+        "children": []
+      }
+    }
+  },
+  {
+    "title": "Ethics in Credit Scoring",
+    "create_time": 1745331688.921647,
+    "update_time": 1745919499.016058,
+    "mapping": {
+      "client-created-root": {
+        "id": "client-created-root",
+        "message": null,
+        "parent": null,
+        "children": ["36b2b301-96ce-4574-a373-f5f7a1096d7e"]
+      },
+      "36b2b301-96ce-4574-a373-f5f7a1096d7e": {
+        "id": "36b2b301-96ce-4574-a373-f5f7a1096d7e",
+        "message": {
+          "id": "36b2b301-96ce-4574-a373-f5f7a1096d7e",
+          "author": {
+            "role": "system",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": null,
+          "update_time": null,
+          "content": {
+            "content_type": "text",
+            "parts": [""]
+          },
+          "status": "finished_successfully",
+          "end_turn": true,
+          "weight": 0.0,
+          "metadata": {
+            "is_visually_hidden_from_conversation": true
+          },
+          "recipient": "all",
+          "channel": null
+        },
+        "parent": "client-created-root",
+        "children": ["3f36b5d4-ecb2-456c-93d3-e7d82fb958fe"]
+      },
+      "3f36b5d4-ecb2-456c-93d3-e7d82fb958fe": {
+        "id": "3f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+        "message": {
+          "id": "3f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+          "author": {
+            "role": "user",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": null,
+          "update_time": null,
+          "content": {
+            "content_type": "text",
+            "parts": ["What are the ethical considerations in credit scoring?"]
+          },
+          "status": "finished_successfully",
+          "end_turn": true,
+          "weight": 0.0,
+          "metadata": {},
+          "recipient": "all",
+          "channel": null
+        },
+        "parent": "36b2b301-96ce-4574-a373-f5f7a1096d7e",
+        "children": ["4f36b5d4-ecb2-456c-93d3-e7d82fb958fe"]
+      },
+      "4f36b5d4-ecb2-456c-93d3-e7d82fb958fe": {
+        "id": "4f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+        "message": {
+          "id": "4f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+          "author": {
+            "role": "assistant",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": null,
+          "update_time": null,
+          "content": {
+            "content_type": "text",
+            "parts": ["Ethical considerations in credit scoring include ensuring fairness and transparency, avoiding bias in algorithms, protecting consumer data privacy, and providing clear explanations for credit decisions."]
+          },
+          "status": "finished_successfully",
+          "end_turn": true,
+          "weight": 0.0,
+          "metadata": {},
+          "recipient": "all",
+          "channel": null
+        },
+        "parent": "3f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+        "children": []
+      }
+    }
+  },
+  {
+    "title": "Future of Credit Scoring",
+    "create_time": 1745331689.921647,
+    "update_time": 1745919500.016058,
+    "mapping": {
+      "client-created-root": {
+        "id": "client-created-root",
+        "message": null,
+        "parent": null,
+        "children": ["46b2b301-96ce-4574-a373-f5f7a1096d7e"]
+      },
+      "46b2b301-96ce-4574-a373-f5f7a1096d7e": {
+        "id": "46b2b301-96ce-4574-a373-f5f7a1096d7e",
+        "message": {
+          "id": "46b2b301-96ce-4574-a373-f5f7a1096d7e",
+          "author": {
+            "role": "system",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": null,
+          "update_time": null,
+          "content": {
+            "content_type": "text",
+            "parts": [""]
+          },
+          "status": "finished_successfully",
+          "end_turn": true,
+          "weight": 0.0,
+          "metadata": {
+            "is_visually_hidden_from_conversation": true
+          },
+          "recipient": "all",
+          "channel": null
+        },
+        "parent": "client-created-root",
+        "children": ["5f36b5d4-ecb2-456c-93d3-e7d82fb958fe"]
+      },
+      "5f36b5d4-ecb2-456c-93d3-e7d82fb958fe": {
+        "id": "5f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+        "message": {
+          "id": "5f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+          "author": {
+            "role": "user",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": null,
+          "update_time": null,
+          "content": {
+            "content_type": "text",
+            "parts": ["What does the future hold for credit scoring?"]
+          },
+          "status": "finished_successfully",
+          "end_turn": true,
+          "weight": 0.0,
+          "metadata": {},
+          "recipient": "all",
+          "channel": null
+        },
+        "parent": "46b2b301-96ce-4574-a373-f5f7a1096d7e",
+        "children": ["6f36b5d4-ecb2-456c-93d3-e7d82fb958fe"]
+      },
+      "6f36b5d4-ecb2-456c-93d3-e7d82fb958fe": {
+        "id": "6f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+        "message": {
+          "id": "6f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+          "author": {
+            "role": "assistant",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": null,
+          "update_time": null,
+          "content": {
+            "content_type": "text",
+            "parts": ["The future of credit scoring may involve more personalized scoring models, the use of alternative data sources, and advancements in AI and machine learning to improve accuracy and reduce bias."]
+          },
+          "status": "finished_successfully",
+          "end_turn": true,
+          "weight": 0.0,
+          "metadata": {},
+          "recipient": "all",
+          "channel": null
+        },
+        "parent": "5f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+        "children": []
+      }
+    }
+  },
+  {
+    "title": "Regulations in Credit Scoring",
+    "create_time": 1745331690.921647,
+    "update_time": 1745919501.016058,
+    "mapping": {
+      "client-created-root": {
+        "id": "client-created-root",
+        "message": null,
+        "parent": null,
+        "children": ["56b2b301-96ce-4574-a373-f5f7a1096d7e"]
+      },
+      "56b2b301-96ce-4574-a373-f5f7a1096d7e": {
+        "id": "56b2b301-96ce-4574-a373-f5f7a1096d7e",
+        "message": {
+          "id": "56b2b301-96ce-4574-a373-f5f7a1096d7e",
+          "author": {
+            "role": "system",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": null,
+          "update_time": null,
+          "content": {
+            "content_type": "text",
+            "parts": [""]
+          },
+          "status": "finished_successfully",
+          "end_turn": true,
+          "weight": 0.0,
+          "metadata": {
+            "is_visually_hidden_from_conversation": true
+          },
+          "recipient": "all",
+          "channel": null
+        },
+        "parent": "client-created-root",
+        "children": ["7f36b5d4-ecb2-456c-93d3-e7d82fb958fe"]
+      },
+      "7f36b5d4-ecb2-456c-93d3-e7d82fb958fe": {
+        "id": "7f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+        "message": {
+          "id": "7f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+          "author": {
+            "role": "user",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": null,
+          "update_time": null,
+          "content": {
+            "content_type": "text",
+            "parts": ["What are the key regulations affecting credit scoring?"]
+          },
+          "status": "finished_successfully",
+          "end_turn": true,
+          "weight": 0.0,
+          "metadata": {},
+          "recipient": "all",
+          "channel": null
+        },
+        "parent": "56b2b301-96ce-4574-a373-f5f7a1096d7e",
+        "children": ["8f36b5d4-ecb2-456c-93d3-e7d82fb958fe"]
+      },
+      "8f36b5d4-ecb2-456c-93d3-e7d82fb958fe": {
+        "id": "8f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+        "message": {
+          "id": "8f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+          "author": {
+            "role": "assistant",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": null,
+          "update_time": null,
+          "content": {
+            "content_type": "text",
+            "parts": ["Key regulations affecting credit scoring include the Fair Credit Reporting Act (FCRA), the Equal Credit Opportunity Act (ECOA), and various state laws that govern data privacy and consumer rights."]
+          },
+          "status": "finished_successfully",
+          "end_turn": true,
+          "weight": 0.0,
+          "metadata": {},
+          "recipient": "all",
+          "channel": null
+        },
+        "parent": "7f36b5d4-ecb2-456c-93d3-e7d82fb958fe",
+        "children": []
+      }
+    }
+  }
+]
