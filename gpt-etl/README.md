@@ -1,6 +1,14 @@
-# Chroma DB Tooling
+# GPT-ETL
 
 This project provides tooling for storing and searching embeddings using Chroma DB. It includes scripts for embedding, storing, and searching data, as well as an orchestration flow using Prefect.
+
+## Installation
+
+To install the project, ensure you have `uv` installed. You can install it using:
+
+```bash
+pip install uv
+```
 
 ## Scripts
 
