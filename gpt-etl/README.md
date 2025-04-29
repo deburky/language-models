@@ -71,7 +71,7 @@ This script uses Prefect to orchestrate the entire workflow, including extractin
 To run the entire workflow, use the following command:
 
 ```bash
-python orchestrate_flow.py
+uv run orchestrate_flow.py
 ```
 
 ## Requirements
@@ -80,6 +80,11 @@ Ensure you have the necessary dependencies installed. You can install them using
 
 ```bash
 pip install -r requirements.txt
+```
+or
+
+```bash
+uv sync
 ```
 
 ## Notes
