@@ -152,7 +152,7 @@ def generate_image(model, patch_size, img_size, seq_len, input_dim, device, epoc
 
     Path("../images/outputs_gif_iris").mkdir(parents=True, exist_ok=True)
     gif_path = f"../images/outputs_gif_iris/gen_{epoch:03d}.gif"
-    imageio.mimsave(gif_path, gif_frames, duration=0.15)
+    imageio.mimsave(gif_path, gif_frames, duration=0.01, fps=50)
     print(f"[GIF] Saved animated generation to: {gif_path}")
 
 
