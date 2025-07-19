@@ -107,3 +107,138 @@ def generate(model, start_patch, seq_len):
 ## 6. Conclusion
 
 This minimal prototype demonstrates that GPT-style architectures can be extended to vision in a patchwise autoregressive way. Despite being inefficient for high-res images, this approach offers a clear, interpretable generative process and encourages future research into lightweight, autoregressive image generation.
+
+---
+
+## 7. Usage Instructions
+
+### Prerequisites
+
+First, install the dependencies using `uv` (recommended) or `pip`:
+
+```bash
+# Using uv (recommended)
+uv sync
+
+# Or using pip
+pip install -e .
+```
+
+### Available Scripts
+
+The `tools/` directory contains several training and visualization scripts:
+
+#### 1. Basic Training Scripts
+
+**Train on Iris Dataset:**
+```bash
+python tools/train_patch_gpt_iris.py
+```
+This script trains PatchGPT on the iris flower images located in `images/iris/`. It uses predefined hyperparameters optimized for the iris dataset.
+
+**Train on Checkerboard Patterns:**
+```bash
+python tools/train_patch_gpt_checkers.py
+```
+This script demonstrates training on synthetic checkerboard patterns. It's useful for understanding the basic autoregressive behavior of the model.
+
+#### 2. CLI-based Training (with customizable parameters)
+
+**General Training Script:**
+```bash
+python tools/patch_gpt.py train --help
+```
+
+Example usage with custom parameters:
+```bash
+python tools/patch_gpt.py train \
+  --data-path images/iris \
+  --num-epochs 3000 \
+  --batch-size 4 \
+  --learning-rate 2e-3 \
+  --patch-size 8 \
+  --img-size 128 \
+  --depth 2 \
+  --n-heads 8 \
+  --n-dims 128
+```
+
+**Root-level CLI (Alternative):**
+```bash
+python patchgpt_cli.py train --help
+```
+
+Or use the provided shell script:
+```bash
+bash patch_gpt_cli.sh
+```
+
+#### 3. GIF Generation Scripts (Training with Animation)
+
+These scripts create animated GIFs showing the patch-by-patch generation process:
+
+**Iris Dataset with GIF Output:**
+```bash
+python tools/patch_gpt_gif_iris.py train \
+  --data-path images/iris \
+  --num-epochs 3000 \
+  --save-epochs 100
+```
+
+**Pattern Dataset with GIF Output:**
+```bash
+python tools/patch_gpt_gif_patterns.py train \
+  --data-path images/patterns \
+  --num-epochs 2000 \
+  --patch-size 4 \
+  --img-size 32
+```
+
+**Checkerboard with GIF Output:**
+```bash
+python tools/patch_gpt_gif_checkers.py
+```
+
+#### 4. Utility Scripts
+
+**Generate Checkerboard Patterns:**
+```bash
+python tools/generate_checkerboard.py
+```
+This script generates and visualizes synthetic checkerboard patterns.
+
+### CLI Parameters
+
+All CLI scripts support the following parameters:
+
+- `--data-path`: Path to training images folder (default varies by script)
+- `--num-epochs`: Number of training epochs (default: 3000-5000)
+- `--save-epochs`: Save outputs every N epochs (default: 100)
+- `--batch-size`: Training batch size (default: 4)
+- `--learning-rate`: Learning rate (default: 2e-3)
+- `--patch-size`: Size of image patches (default: 8)
+- `--img-size`: Input image resolution (default: 128)
+- `--depth`: Transformer depth/layers (default: 2)
+- `--n-heads`: Number of attention heads (default: 8)
+- `--n-dims`: Transformer embedding dimension (default: 128)
+
+### Output
+
+During training, the scripts will:
+- Print loss values every `save_epochs` iterations
+- Generate sample images showing training progress
+- For GIF scripts: Create animated visualizations of the generation process
+
+The generated images and GIFs are saved in the same directory as the training script, typically named with epoch numbers and timestamps.
+
+### Dataset Structure
+
+Your image datasets should be organized as follows:
+```
+images/
+├── iris/           # Iris flower images
+├── patterns/       # Pattern images  
+└── your_dataset/   # Your custom images
+```
+
+Images should be in common formats (JPG, PNG) and will be automatically resized to the specified `img_size`.
