@@ -1,3 +1,1 @@
-# Brand Extractor Scripts Package
-
-
+"""Brand extraction scripts package."""

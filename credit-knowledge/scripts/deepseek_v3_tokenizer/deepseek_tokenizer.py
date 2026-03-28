@@ -1,3 +1,5 @@
+"""Smoke-test loading the DeepSeek tokenizer from the current directory."""
+
 # pip3 install transformers
 # python3 deepseek_tokenizer.py
 import transformers

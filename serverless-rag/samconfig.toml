@@ -1,0 +1,14 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "serverless-rag"
+resolve_s3 = true
+s3_prefix = "serverless-rag"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "AuroraEndpoint=\"/serverless-rag/aurora-endpoint\" ModelBucket=\"/serverless-rag/model-bucket\""
+image_repositories = []
+
+[default.global.parameters]
+region = "us-east-1"

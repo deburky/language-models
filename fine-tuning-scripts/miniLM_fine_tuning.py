@@ -1,6 +1,7 @@
+"""Fine-tune MiniLM for binary sentiment on Amazon food reviews."""
+
 import time
 
-import numpy as np
 import pandas as pd
 import torch
 from datasets import Dataset, DatasetDict
@@ -42,6 +43,7 @@ tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 # Tokenization function
 def tokenize_function(examples):
+    """Pad and truncate texts for MiniLM."""
     return tokenizer(examples["text"], padding="max_length", truncation=True)
 
 
@@ -88,6 +90,7 @@ training_args = TrainingArguments(
 
 # Define compute metrics function
 def compute_metrics(p):
+    """Compute binary classification metrics plus a Gini-style score."""
     probs = torch.nn.functional.softmax(torch.tensor(p.predictions), dim=1)[
         :, 1
     ].numpy()

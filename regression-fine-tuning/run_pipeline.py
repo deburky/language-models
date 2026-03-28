@@ -1,4 +1,4 @@
-"""run_pipeline.py"""
+"""Run fine-tuning then evaluation as a local sequential pipeline."""
 
 import subprocess
 import sys
@@ -17,7 +17,7 @@ scripts_with_args = [
 ]
 
 for script, args in scripts_with_args:
-    console.print(f"\n🚀 [bold cyan]Running {script}...[/bold cyan]\n")
+    console.print(f"\n[bold cyan]Running {script}...[/bold cyan]\n")
 
     # Construct the full command
     command = [sys.executable, script] + args
@@ -33,4 +33,4 @@ for script, args in scripts_with_args:
         console.print(f"[red]Error while running {script}, stopping pipeline.[/red]")
         sys.exit(1)
 
-console.print("\n✅ [bold green]Pipeline ran successfully![/bold green] 🎉")
+console.print("\n[bold green]Pipeline ran successfully![/bold green]")

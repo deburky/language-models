@@ -1,0 +1,8 @@
+{
+  "queryStringParameters": {
+    "backend": "aurora",
+    "user_id": "test-user",
+    "q": "What is Amazon Aurora?",
+    "k": "3"
+  }
+}

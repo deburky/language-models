@@ -4,6 +4,7 @@ import duckdb
 
 
 def main():
+    """Print row counts, fetch a sample, and write rows to ``output.txt``."""
     try:
         # Connect to the database
         con = duckdb.connect("db/embeddings.db")

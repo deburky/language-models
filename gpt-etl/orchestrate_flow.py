@@ -1,3 +1,5 @@
+"""Prefect flow to extract ChatGPT exports, embed them, and search Chroma."""
+
 import json
 import os
 import subprocess
@@ -102,10 +104,11 @@ def search_db():
 
 @flow(name="Chroma DB Orchestration")
 def chroma_db_flow():
+    """Orchestrate title export, markdown extraction, ETL, and a sample search."""
     titles_task = extract_titles()
     conversations_task = extract_conversations()
     etl_task = etl_to_db(wait_for=[titles_task, conversations_task])
-    search_task = search_db(wait_for=[etl_task])
+    search_db(wait_for=[etl_task])
 
 if __name__ == "__main__":
     chroma_db_flow()

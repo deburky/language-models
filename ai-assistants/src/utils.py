@@ -1,13 +1,13 @@
-from openai import OpenAI
-from io import BytesIO
-import pandas as pd
-from rich.table import Table
-from rich.live import Live
-import time
+"""Utility helpers for OpenAI assistants and Rich table rendering."""
 
-# Helper function to convert tables
+from io import BytesIO
+
+from openai import OpenAI
+from rich.table import Table
+
+
 def pyarrow_to_csv_buffer(table):
-    """PyArrow table to CSV buffer."""
+    """Convert a PyArrow table to a CSV stream in memory."""
     csv_buffer = BytesIO()
     df = table.to_pandas()
     df.to_csv(csv_buffer, index=False)
@@ -15,40 +15,40 @@ def pyarrow_to_csv_buffer(table):
     return csv_buffer
 
 def delete_all_assistants_and_files():
-    """Deletes all OpenAI assistants and files."""
+    """Delete all OpenAI assistants and uploaded files for this account."""
     client = OpenAI()
 
     # Delete all assistants
     assistants = client.beta.assistants.list()
     if assistants.data:
-        print(f"🔍 Found {len(assistants.data)} assistants to delete...")
+        print(f"Found {len(assistants.data)} assistants to delete...")
         for assistant in assistants.data:
-            print(f"🗑️ Deleting Assistant: {assistant.name} (ID: {assistant.id})")
+            print(f"Deleting Assistant: {assistant.name} (ID: {assistant.id})")
             client.beta.assistants.delete(assistant.id)
-        print("✅ All assistants deleted!")
+        print("All assistants deleted!")
     else:
-        print("✅ No assistants found.")
+        print("No assistants found.")
 
     # Delete all files
     files = client.files.list()
     if files.data:
-        print(f"🔍 Found {len(files.data)} files to delete...")
+        print(f"Found {len(files.data)} files to delete...")
         for file in files.data:
-            print(f"🗑️ Deleting File: {file.filename} (ID: {file.id})")
+            print(f"Deleting File: {file.filename} (ID: {file.id})")
             client.files.delete(file.id)
-        print("✅ All files deleted!")
+        print("All files deleted!")
     else:
-        print("✅ No files found.")
+        print("No files found.")
 
 
 
-# Single conversation table for Rich Live
 def fetch_messages(client, thread_id):
+    """Build a Rich table of thread messages for live display."""
     messages = client.beta.threads.messages.list(thread_id=thread_id)
     table = Table(title="AI Underwriting Conversation (Live)", header_style="cyan bold")
     table.add_column("Role", width=12)
     table.add_column("Message", overflow="fold")
-    content = "[No content]"
+    content_text = "[No content]"
     for message in reversed(messages.data):
         if message.content:
             block = message.content[0]
@@ -58,16 +58,17 @@ def fetch_messages(client, thread_id):
                 content_text = "[Image received]"
             elif block.type == "text":
                 content_text = block.text.value.strip()
-                text = content_text
         else:
-            text = "[No content]"
+            content_text = "[No content]"
         table.add_row(message.role, content_text)
     return table
 
 
-# Run assistant
 class AssistantRunner:
+    """Thin wrapper to post user input and start a thread run."""
+
     def __init__(self, client):
+        """Store the OpenAI client used to drive runs."""
         self.client = client
 
     def start(self, assistant_id, thread_id, user_instructions):

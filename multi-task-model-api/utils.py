@@ -1,4 +1,4 @@
-"""utils.py."""
+"""Typer CLI helpers for caching Hugging Face models locally."""
 
 import os
 import typer
@@ -13,6 +13,7 @@ def download_model(
         "distilbert/distilgpt2", help="The name of the model to download"
     ),
 ):
+    """Download a Hugging Face QA model and tokenizer into ``./models``."""
     model_path = f"./models/{model_name}"
     if not os.path.exists(model_path):
         os.makedirs(model_path, exist_ok=True)

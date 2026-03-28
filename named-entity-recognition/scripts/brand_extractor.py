@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""
-Brand Extractor using Hybrid Approach
-Combines pre-trained spaCy model with pattern matching for better coverage
-No manual annotation required
+"""Infer brands from product titles using spaCy ORG entities and heuristics.
+
+Falls back to regex patterns when entities are weak; no manual labels needed.
 """
 
 import re
@@ -11,14 +10,12 @@ from typing import Optional
 import pandas as pd
 import spacy
 
-# Curated list of real brands
-KNOWN_BRANDS = {}
+# Curated list of real brands (lowercase substrings to match in titles)
+KNOWN_BRANDS: set[str] = set()
 
 
 def extract_brand_hybrid(text: str, nlp) -> Optional[str]:
-    """
-    Extract brand using hybrid approach: spaCy ORG + pattern matching + known brands
-    """
+    """Infer a brand string from one product title using hybrid rules."""
     if not text or pd.isna(text):
         return None
 
@@ -114,18 +111,19 @@ def extract_brand_hybrid(text: str, nlp) -> Optional[str]:
 
 
 def main():
-    print("🎯 HYBRID BRAND EXTRACTION")
+    """Load data, run extraction, write CSV, and print stats."""
+    print("HYBRID BRAND EXTRACTION")
     print("=" * 60)
 
     # Load pre-trained model
     print("Loading pre-trained model...")
     nlp = spacy.load("en_core_web_sm")
-    print("✅ Model loaded!")
+    print("Model loaded!")
 
     # Load data
     print("Loading data...")
     df = pd.read_csv("data/marketing_sample.csv")
-    print(f"✅ Loaded {len(df)} records")
+    print(f"Loaded {len(df)} records")
 
     # Extract brands
     print("\nExtracting brands...")
@@ -146,26 +144,26 @@ def main():
     df.to_csv(output_file, index=False)
 
     # Show results
-    print(f"\n✅ Results saved to {output_file}")
+    print(f"\nResults saved to {output_file}")
 
     # Show statistics
     total_records = len(df)
     successful_extractions = len(df[df["brand"].notna()])
     success_rate = (successful_extractions / total_records) * 100
 
-    print("\n📊 EXTRACTION STATISTICS:")
+    print("\nEXTRACTION STATISTICS:")
     print(f"Total records: {total_records:,}")
     print(f"Successful extractions: {successful_extractions:,}")
     print(f"Success rate: {success_rate:.1f}%")
 
     # Show top brands
-    print("\n🏆 TOP 15 BRANDS:")
+    print("\nTOP 15 BRANDS:")
     brand_counts = df["brand"].value_counts().head(15)
     for i, (brand, count) in enumerate(brand_counts.items(), 1):
         print(f"{i:2d}. {brand}: {count}")
 
     # Show sample extractions
-    print("\n🔍 SAMPLE EXTRACTIONS:")
+    print("\nSAMPLE EXTRACTIONS:")
     sample_df = df[df["brand"].notna()].head(15)
     for i, row in sample_df.iterrows():
         print(f"Title: {row['asin_name'][:60]}...")

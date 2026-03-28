@@ -49,18 +49,21 @@ class ImageFolderDataset(Dataset):
     """Implementation of a simple image dataset loader."""
 
     def __init__(self, root, transform=None):
+        """Collect paths under ``root`` and remember optional transforms."""
         self.paths = sorted(
             [str(f) for f in Path(root).iterdir() if f.suffix.lower() in (".jpg", ".png")]
         )
         self.transform = transform
 
     def __getitem__(self, idx):
+        """Load image ``idx`` and return a tensor with a dummy label."""
         img = Image.open(self.paths[idx]).convert("RGB")
         if self.transform:
             img = self.transform(img)
         return img, 0
 
     def __len__(self):
+        """Return how many image paths are available."""
         return len(self.paths)
 
 
@@ -80,6 +83,7 @@ class PatchGPT(nn.Module):
     """A simple implementation of a transformer model for image generation."""
 
     def __init__(self, input_dim, seq_len, dim, heads, depth):
+        """Wire token and positional embeddings and transformer blocks."""
         super().__init__()
         self.token_embed = nn.Linear(input_dim, dim)
         self.pos_embed = nn.Parameter(torch.randn(1, seq_len, dim))

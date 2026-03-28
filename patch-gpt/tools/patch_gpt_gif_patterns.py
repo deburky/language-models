@@ -70,6 +70,7 @@ class ImageFolderDataset(Dataset):
         return img, 0
 
     def __len__(self):
+        """Return how many image files are available."""
         return len(self.paths)
 
 

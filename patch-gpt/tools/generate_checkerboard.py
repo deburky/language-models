@@ -1,3 +1,5 @@
+"""Generate and plot a simple torch checkerboard tensor."""
+
 import torch
 from matplotlib import pyplot as plt
 

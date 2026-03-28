@@ -1,4 +1,4 @@
-"""query_db.py."""
+"""Print a small sample of rows from the document vector table."""
 
 import sqlite3
 from rich.console import Console
@@ -20,7 +20,7 @@ with open("output.txt", "w") as f:
 console = Console()
 
 # Create Rich Table
-table = Table(title="📄 Document Embeddings", show_lines=False, style="bold cyan")
+table = Table(title="Document Embeddings", show_lines=False, style="bold cyan")
 
 # Add rows
 for row in rows:

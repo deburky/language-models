@@ -1,0 +1,3 @@
+{
+  "body": "{\"user_id\": \"test-user\", \"document_id\": \"doc-001\", \"text\": \"Amazon Aurora is a MySQL and PostgreSQL-compatible relational database built for the cloud. It combines the performance and availability of traditional enterprise databases with the simplicity and cost-effectiveness of open source databases. Aurora is fully managed by Amazon RDS which automates time-consuming administration tasks like hardware provisioning, database setup, patching, and backups.\"}"
+}

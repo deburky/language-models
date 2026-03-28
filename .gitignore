@@ -1,1 +1,6 @@
 .DS_store
+*.db
+credit-knowledge/db/vss.db
+credit-knowledge/output.txt
+.mypy_cache/
+.ruff_cache/

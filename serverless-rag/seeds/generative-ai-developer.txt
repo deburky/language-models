@@ -1,0 +1,2097 @@
+> AWS Generative AI Developer Advanced Learning Plan (includes Labs)
+
+>[!important]
+> * Create flexible architectures that enable dynamic model selection and provider switching.
+> * Develop data processing workflows to handle complex, multimodal data types.
+> * Use Amazon Web Services (AWS) services to connect vector stores with additional data sources.
+> * Configure vector search solutions by using Amazon OpenSearch Service, **Amazon Aurora with pgvector extension**, and Amazon Bedrock Knowledge Bases.
+> 
+> **Service control policies (SCPs)** are a type of organization policy that you can use to manage permissions in your organization. SCPs offer central control over the maximum available permissions for the IAM users and IAM roles in your organization. SCPs help you to ensure your accounts stay within your organization’s access control guidelines.
+> 
+> **Knowledge Bases** provides vector search and semantic search capabilities across multiple data sources. MCP provides standardized client interfaces for vector queries across different data sources. This solution ensures consistency and maintainability. Amazon Bedrock function calling interfaces provide uniform integration for all FM interactions.
+> 
+> Blue/Green → updates without service interruption
+> AWS AppConfig + Lambda + API Gateway → dynamic model selection
+> AWS AppConfig → feature flags and configuration profiles for dynamic FM enabling
+> 
+> Data quality checks: AWS Glue Data Quality with Amazon CloudWatch metrics
+> Multimodal data processing: Amazon Bedrock, Amazon SageMaker Processing, and Amazon Transcribe
+> 
+> Amazon Bedrock Knowledge Bases enable hierarchical organization of vector data specifically for foundation model augmentation
+# 1.  Analyze requirements and design Generative AI solutions
+## Model types and selection
+
+ BioGPT for biomedical text generation, AlphaFold for protein structure prediction, LEGAL-BERT for legal document analysis, and CodeT5 for software development tasks.
+
+1. **Choose general-purpose models when:** You need to perform many different kinds of tasks across various domains. Benefit: Offers flexibility and breadth across multiple applications, reducing the need for multiple specialized models. Cost-effective for diverse workloads.
+2. **Choose specialized models when:** You need to perform a single, critical task that requires high precision in a specific domain. Benefit: Delivers superior accuracy and efficiency for domain-specific tasks, with better understanding of specialized terminology and context. Reduces errors in high-stakes scenarios.
+
+## Integration approaches
+
+> [!important]
+> **Amazon Bedrock integration (unified API):**
+> Amazon Bedrock provides a unified API to access multiple foundation models without managing infrastructure. This fully managed service offers pay-per-use pricing based on API calls, with no infrastructure management required. Benefits include quick time-to-market, built-in security and compliance, access to various models through a single interface, and automatic scaling. Best for applications without deep ML expertise, rapid prototyping, standard use cases, and when you want to focus on application logic rather than infrastructure.
+> 
+> **Amazon SageMaker AI integration (self-host):**
+> Amazon SageMaker AI enables custom model deployment and training with full control over model configuration. This option charges based on compute resources and storage, giving you complete control over deployment settings, instance types, and scaling policies. Benefits include ability to deploy custom models, extensive fine-tuning capabilities, specialized configurations for compliance, and integration with existing ML pipelines. Best for custom models, applications requiring extensive fine-tuning, specialized requirements, or when you need granular control over the ML infrastructure.
+> 
+> **Direct provider API integration (direct API):**
+> Direct provider APIs involve integrating with model providers like Anthropic or OpenAI through their native APIs or frameworks like LangChain. This approach provides direct access to the latest model features and updates as soon as providers release them. Benefits include access to provider-specific capabilities, flexibility in integration patterns, and potential for early access to new features. Consider for applications with specific provider requirements, when you need features not yet available in Bedrock, or when direct provider relationships offer advantages.
+
+**Fine-tuning solution**: fine-tuing adjusts model parameters using your specific training data to improve performance for domain-specific tasks. Requires training and validation datasets, and typically needs **Provisioned Throughput** for deployment.
+
+**The RAG solution:** RAG combines foundation models with external knowledge sources to provide more accurate, up-to-date, and contextually relevant responses. When a user asks a question, RAG retrieves relevant information from your knowledge base and provides it as context to the foundation model, grounding the response in factual sources.
+
+_Model chaining_ involves connecting multiple AI models or services to create complex workflows. _Sequential chaining_ provides linear flow from one model to another where output becomes input to the next. _Parallel processing_ uses multiple models processing same input simultaneously with results combined for final output. _Conditional branching_ uses different models based on input characteristics, whereas _feedback loops_ use model outputs to influence subsequent processing steps.
+
+> [!example] Document processing pipeline uses OCR for text extraction, then classification, summarization, and storage with each step optimized for specific task. Multi-modal content generation flows from text prompt to image generation to image analysis to caption generation by using different models for different modalities. Intelligent customer service implements intent classification, knowledge retrieval, response generation, and sentiment analysis with adaptive routing based on complexity.
+
+![[bedrock_orchestrator.png]]
+
+## PoC
+
+![[bedrock_implementation.png]]
+
+Proof-of-concept (PoC) development represents an important phase in generative AI implementation where you validate technical feasibility, measure performance characteristics, and demonstrate business value before committing to full-scale deployment. Amazon Bedrock provides an ideal platform for PoC development with its managed foundation models and straightforward API access.
+
+**Agents**  
+Agents orchestrate complex workflows by combining foundation models with external tools and APIs. This capability helps you build sophisticated applications that can perform multi-step tasks and interact with external systems.
+
+![[bedrock_poc.png]]
+
+> [!danger] Avoid problems that require real-time decision-making with real-world consequences or tasks that demand perfect accuracy without human oversight.
+
+> [!success] Limit PoC duration to 2-8 weeks depending on complexity. Define specific deliverables for each week, including technical milestones and evaluation checkpoints. This constraint forces focus on essential features and prevents scope creep.
+
+![[bedrock_inference.png]]
+
+**Converse API**
+
+```python
+import boto3
+
+bedrock = boto3.client('bedrock-runtime')
+
+def invoke_model(prompt, model_id="anthropic.claude-3-5-sonnet-20240620-v1:0"):
+	response = bedrock.converse(
+		modelId=model_id,
+	    messages=[{"role": "user", "content": [{"text": prompt}]}],
+	    inferenceConfig={"maxTokens": 1000}
+	)
+  return response['output']['message']['content'][0]['text']
+```
+
+**Converse Stream API (real-time user interaction)**
+
+```python
+def invoke_model_streaming(
+    prompt, model_id="us.anthropic.claude-4-sonnet-20250514-v1:0"
+):
+    response = bedrock.converse_stream(
+        modelId=model_id,
+        messages=[{"role": "user", "content": [{"text": prompt}]}],
+        inferenceConfig={"maxTokens": 1000},
+    )
+
+
+for event in response["stream"]:
+    if "contentBlockDelta" in event:
+        yield event["contentBlockDelta"]["delta"]["text"]
+```
+
+Batch processing
+
+```python
+import time
+from concurrent.futures import ThreadPoolExecutor
+
+def process_batch(items, max_workers=5):
+    def process_item(item):
+        try:
+            return invoke_model(item["prompt"])
+
+        except Exception as e:
+            time.sleep(1)  # Simple retry delay
+
+            return invoke_model(item["prompt"])
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        results = list(executor.map(process_item, items))
+
+    return results
+```
+
+RAG integration
+
+```python
+bedrock_agent = boto3.client("bedrock-agent-runtime")
+
+def retrieve_and_generate(
+    query,
+    knowledge_base_id,
+    model_arn="arn:aws:bedrock:us-east-1::foundation-model/us.anthropic.claude-4-sonnet-20250514-v1:0",
+):
+    response = bedrock_agent.retrieve_and_generate(
+        input={"text": query},
+        retrieveAndGenerateConfiguration={
+            "type": "KNOWLEDGE_BASE",
+            "knowledgeBaseConfiguration": {
+                "knowledgeBaseId": knowledge_base_id,
+                "modelArn": model_arn,
+            },
+        },
+    )
+
+    return response["output"]["text"]
+```
+
+Business impact assessment **captures the broader organizational value** that extends beyond direct cost savings and operational improvements. These strategic benefits often justify PoC investment even when immediate ROI is unclear.
+
+> [!success] Calculate comprehensive value including cost savings, process improvements, and strategic benefits.
+## Going live
+
+![[bedrock_productionizing.png]]
+
+> * Understanding **expected production load patterns**, including peak usage, concurrent users, and geographic distribution
+> * Design intelligent request routing systems with automatic scaling capabilities. Optimize for scale with request queuing for rate limit management, response caching, and API techniques like **circuit breakers** and retries with **exponential backoff**
+> * Design robust APIs that support versioning, backward compatibility, and **graceful degradation**. Implement proper error handling, rate limiting, and documentation to support enterprise integration requirements.
+
+> [!columns] Monitoring
+> 
+> ## **Technical monitoring**
+> Implement comprehensive monitoring for inference latency, throughput, error rates, and system availability. Track model-specific metrics including accuracy, response quality, and token usage patterns.
+> 
+> ---
+> 
+> ## **Business monitoring**
+> Monitor business metrics including cost per inference, user satisfaction, and business value delivered. Establish dashboards and alerting systems that provide visibility into both technical and business performance.
+> 
+> ---
+> 
+> ## **Security and compliance monitoring**
+> Implement continuous monitoring for security events, access patterns, and compliance violations. Maintain comprehensive audit trails and automated compliance reporting capabilities.
+
+## RAG
+
+> **Optimize document structure**
+> * Implement proper headings and subheadings for better content organization. Verify sequential numbering in lists, add transitions between items, and replace complex tables with structured text formats. Preprocess graphical information and describe visual content in text format.
+> * Focus on disambiguation, define abbreviations, and **restructure large documents into smaller, self-contained units** for better retrieval performance.
+
+## Organizational structure
+
+> [!columns] Org
+> 
+> ## **AI Center of Excellence (AI CoE)**
+> Establish an AI CoE that provides guidance, best practices, and technical capabilities across your organization. This center serves as the focal point for generative AI expertise, standards development, and cross-functional collaboration.
+> 
+> ---
+> 
+> ## **Model governance committee**
+> Create a governance committee that develops evaluation criteria, reviews usage requests, and validates compliance with organizational policies. This committee verifies consistent application of standards and risk management practices.
+> 
+> ---
+> 
+> ## **Cross-functional teams**
+> Form cross-functional teams that include technical experts, business stakeholders, and legal representatives. These teams verify comprehensive consideration of all aspects of generative AI implementation.
+
+Automation capabilities reduce operational overhead while improving system reliability and responsiveness. These operational patterns help you implement self-managing systems that maintain performance and availability with minimal human intervention.
+
+> **Automated scaling**
+> Implement **intelligent auto-scaling** that responds to demand patterns while optimizing costs. Use **predictive scaling** based on historical patterns and business events to proactively manage capacity.
+
+> **Self-healing systems**
+> Design systems with **self-healing capabilities** that automatically recover from common failure scenarios. Implement circuit breakers, retry logic, and graceful degradation patterns that maintain service availability.
+
+> **Continuous deployment**
+> Establish **continuous deployment pipelines** that support rapid iteration while maintaining production stability. Include automated testing, canary deployments, and rollback capabilities in your deployment processes.
+
+## Rolling out
+
+1. **Foundation setting (weeks 1–4)**
+   Establish your AI Center of Excellence and governance committee with clear roles and responsibilities. Create standardized patterns and tooling library that supports consistent implementation across teams. Implement comprehensive security and compliance framework with audit capabilities. Set up monitoring and observability infrastructure that provides end-to-end visibility.
+2. **Pilot production deployment (weeks 5–12)**
+   Select well-defined, limited-scope projects that demonstrate production capabilities without excessive risk. Implement production-ready architecture with scaling capabilities, load balancing, and high availability. Deploy comprehensive monitoring and alerting systems with automated response capabilities. Establish incident response procedures and runbooks for common operational scenarios.
+3. **Scale and optimize (weeks 13–24)**
+   Document success metrics and learnings from pilot deployments to guide broader implementation. Scale successful implementations gradually while monitoring performance and cost impacts. Optimize costs through intelligent model selection, resource management, and usage pattern analysis. Implement continuous improvement processes that capture feedback and drive optimization.
+4. **Enterprise adoption (weeks 25+)**
+   Create comprehensive training programs that help you achieve broader organizational adoption. Establish knowledge sharing mechanisms including communities of practice and regular technical reviews. Expand to additional use cases and business units by using proven patterns and processes. Maintain focus on continuous improvement and adaptation to evolving business needs.
+
+## Check-list
+
+### Operational
+
+* [v] **Load testing completed** - Validated performance under expected production traffic patterns
+* [v] **Scaling architecture implemented** - Auto-scaling, load balancing, and multi-region deployment configured.
+* [v] **Model performance verified** - Response times, accuracy, and consistency tested at production scale
+* [v] **API design finalized** - Versioning, error handling, rate limiting, and documentation complete
+* [v] **Integration testing passed** - All enterprise system connections validated and documented
+### Organizational
+
+* [v] **Governance framework established** - AI Center of Excellence and model governance committee operational
+* [v] **Training programs delivered** - User training, technical documentation, and support processes ready
+* [v] **Change management completed** - Stakeholder buy-in, communication plan, and adoption strategy accepted
+* [v] **Compliance validation finished** - Legal review, regulatory requirements, and audit trails verified
+* [v] **Success metrics defined** - Business value indicators, ROI measurement, and reporting mechanisms active
+### RAG-specific
+
+* [v] **Document quality optimized** - Content structure, formatting, and semantic coverage enhanced
+* [v] **Vector database scaled** - Production-ready embedding pipeline and retrieval architecture deployed
+* [v] **Knowledge base validated** - Content accuracy, coverage, and update processes verified
+* [v] **Retrieval performance tuned** - Query optimization, caching strategies, and response quality tested
+## Well-Architected Framework
+
+![[bedrock_well_architected.png]]
+  
+AI reliability includes multi-region deployment strategies, **circuit breakers** and retry mechanisms for model failures, model fallback strategies, and comprehensive health checks. You implement disaster recovery specifically designed for AI workloads and handle varying throughput requirements effectively.
+### IaC patterns
+
+- **AWS CloudFormation templates**: Create reusable CloudFormation templates that define your generative AI infrastructure components including Amazon Bedrock configurations, IAM roles, VPC settings, and monitoring resources. These templates verify consistent deployment across environments while supporting parameterization for environment-specific customization.
+
+- **AWS CDK constructs**: Develop AWS Cloud Develoment Kit (CDK) constructs that encapsulate generative AI patterns and best practices. CDK constructs provide higher-level abstractions that combine multiple AWS resources into reusable components, making it straightforward to maintain consistency across deployments.
+
+- **Terraform modules**: Build Terraform modules for organizations by using multi-cloud strategies or existing Terraform workflows. These modules provide the same consistency benefits as CloudFormation while supporting deployment across different cloud providers and on-premises environments.
+
+- **Component composition**: Design modular components that can be composed together to create complete generative AI solutions. This approach helps you mix and match components based on specific requirements while maintaining standardization at the component level.
+# 2.  Select and configure foundation models
+
+
+![[bedrock_fms.png]]
+
+**Key leaderboards (task-specific):**
+
+- **Multi-Turn Benchmark (MT-Bench)** evaluates conversational capabilities through multi-turn interactions using GPT-4 as judge with high human correlation, measuring precision/recall and response quality. 
+
+- **HumanEval+ and MBPP+ (Coding Benchmarks)** assess code generation across multiple languages, evaluating function completion, bug fixing, and algorithm implementation to quantify accuracy and efficiency in programming tasks.
+
+- **GSM8K and MATH** focus on mathematical reasoning and problem-solving with step-by-step solution evaluation, measuring precision in quantitative tasks.
+
+- **BIG-Bench Hard** evaluates complex reasoning tasks requiring multiple steps, focusing on challenging edge cases to identify limitations in reasoning capabilities.
+
+**Key leaderboards (multi-modal):**
+
+- **Massive Multimodal Language Understanding (MMMLU)** evaluates processing across text, images, audio, and video, measuring cross-modal coherence and information preservation to assess multimodal integration quality.
+
+- **LMSys Chatbot Arena - Multimodal Tracks** provides human preference judgments for multimodal interactions using an Elo rating system based on millions of comparisons for real-world assessment of modal integration.
+
+- **Massive Multi-discipline Multimodal Understanding (MMMU)** offers specialized evaluation of professional multimodal tasks including technical diagrams and scientific visualizations to assess professional-level multimodal reasoning.
+
+- **Multimodal Evaluation Benchmark (MME)** provides fine-grained evaluation of perception and reasoning, separating perception from reasoning capabilities to identify specific multimodal strengths and weaknesses.
+
+**Serverless AI integration patterns**
+
+Serverless AI integration offers the following benefits:
+
+- [v] **Automatic scaling**: Handle varying AI workload demands without manual intervention.
+- [v] **Cost efficiency**: Pay only for actual compute time and requests processed.
+- [v] **Reduced complexity**: Focus on business logic rather than infrastructure management.
+- [v] **Rapid deployment**: Deploy and update AI integrations quickly without server provisioning.
+
+> The serverless approach aligns well with AI workloads that often have **unpredictable usage patterns** and require frequent updates as new models and capabilities become available.
+
+**AI Stack Components**
+
+1. **<mark style="background-color: orange; color: black;">Lambda</mark>** functions serve as abstraction layers between your application and AI services.
+	1. Ensure that you implement comprehensive error handling that includes **retry logic**, **circuit breaker patterns**, and **graceful degradation**.
+	2. Lambda functions should include the following design considerations:
+		- **Single responsibility**: Each function handles one specific aspect of AI integration.
+		- **Stateless operation**: Avoid dependencies on local state or persistent connections.
+		- **Timeout management**: Configure appropriate timeouts for AI service calls.
+		- **Memory optimization**: Right-size memory allocation based on processing requirements.
+	
+2. **<mark style="background-color: purple; color: white;">API Gateway</mark>** provides a single entry point for all AI service requests.
+
+3. **<mark style="background-color: purple; color: white">AWS AppConfig</mark>**  allows to control model selection, routing rules, and feature flags that determine which AI services to use for specific requests.
+
+4. **<mark style="background-color: gold; color: black;">Amazon Elastic Container Service (Amazon ECS)</mark>**  or **<mark style="background-color: gold; color: black;">Amazon Elastic Kubernetes Service (Amazon EKS)</mark>** allow to deploy containerized AI integration services that support multiple providers and models.
+
+![[bedrock_api_gateway.png]]
+![[bedrock_app_config.png]]
+![[bedrock_containers.png]]
+
+> <mark style="background-color: teal; color: white;">The adapter pattern</mark>  offers a powerful architectural approach for integrating multiple AI services into your applications.
+
+
+> [!example] **Real-world implementation example**
+>A financial services company implements a fraud detection system where Lambda functions analyze transactions by using **API Gateway** as the entry point. They configure **AWS AppConfig** to dynamically switch between different fraud detection models (such as from Amazon Bedrock Claude to Anthropic Claude) based on performance metrics, without modifying code when new models become available.
+>
+>This architecture supports rapid model evaluation, A/B testing of different approaches, and emergency failover scenarios while maintaining consistent service availability for important fraud detection operations.
+## Model routing
+### Static model routing
+
+> **Static model routing** involves pre-defining which foundation models (FMs) will handle specific types of inputs or tasks within your application. This approach works by establishing fixed mappings between input characteristics and model endpoints.
+
+![[bedrock_static_routing.png]]
+
+> **Like a Rule-Based System**: you must manually update routing logic when adding new models or changing business requirements. After implementation, routing rules require code changes to modify, making it difficult to adapt to new use cases or model improvements.
+
+
+The _StaticModelRouter_ class routes requests to AWS Bedrock foundation models using predefined mappings.
+
+> [!code]+ Conditional Example (Python)
+> ```python
+> import boto3
+> import json
+> 
+> class StaticModelRouter:
+>     def init(self):
+>         self.bedrock = boto3.client("bedrock-runtime")
+>         self.model_mappings = {
+>             "faq": "anthropic.claude-3-haiku-20240307-v1:0",
+>             "technical_support": "anthropic.claude-3-sonnet-20240229-v1:0",
+>             "creative_writing": "anthropic.claude-3-opus-20240229-v1:0",
+>             "data_analysis": "amazon.titan-text-express-v1",
+>         }
+> 
+>     def route_request(self, input_text, request_type):
+>         model_id = self.model_mappings.get(request_type)
+>         if not model_id:
+>             raise ValueError(f"Unknown request type: {request_type}")
+> 
+>         return self.invoke_model(model_id, input_text)
+> 
+>     def invoke_model(self, model_id, input_text):
+>         body = json.dumps(
+>             {
+>                 "anthropic_version": "bedrock-2023-05-31",
+>                 "max_tokens": 1000,
+>                 "messages": [{"role": "user", "content": input_text}],
+>             }
+>         )
+> 
+>         response = self.bedrock.invoke_model(
+>             body=body,
+>             modelId=model_id,
+>             accept="application/json",
+>             contentType="application/json",
+>         )
+> 
+>         return json.loads(response.get("body").read())
+> 
+> # Usage example
+> router = StaticModelRouter()
+> result = router.route_request("What are your business hours?", "faq")
+> ```
+
+The _ConfigurableStaticRouter_ class implements flexible static routing for AWS Bedrock models using external configuration. It loads routing rules from a JSON file and evaluates input metadata against these rules using the _matches_criteria_ method, which checks if input data matches all key-value pairs in a rule's criteria.
+
+> [!code]+ Configurable Example (Python)
+> ```python
+> import json
+> import boto3
+> from typing import Dict, Any
+> 
+> class ConfigurableStaticRouter:
+>     def init(self, config_path: str):
+>         with open(config_path, "r") as f:
+>             self.config = json.load(f)
+>             self.bedrock = boto3.client("bedrock-runtime")
+> 
+>     def route_by_metadata(self, input_data: Dict[str, Any]) -> str:
+>         """Route based on request metadata"""
+>         for rule in self.config["routing_rules"]:
+>             if self.matches_criteria(input_data, rule["criteria"]):
+>                 return rule["model_id"]
+> 
+>             return self.config["default_model"]
+>             
+> 	def matches_criteria(
+> 	    self, input_data: Dict[str, Any], criteria: Dict[str, Any]
+> 	) -> bool:
+> 	    """Check if input matches routing criteria"""
+> 	    for key, expected_value in criteria.items():
+> 	        if input_data.get(key) != expected_value:
+> 	            return False
+> 	        return True
+> 	
+>     def invoke_selected_model(self, model_id: str, prompt: str) -> Dict[str, Any]:
+>         """Invoke the selected model with the given prompt"""
+>         body = json.dumps(
+>             {
+>                 "anthropic_version": "bedrock-2023-05-31",
+>                 "max_tokens": 1000,
+>                 "messages": [{"role": "user", "content": prompt}],
+>             }
+>         )
+> 
+>         response = self.bedrock.invoke_model(
+>             body=body,
+>             modelId=model_id,
+>             accept="application/json",
+>             contentType="application/json",
+>         )
+> 
+>         return json.loads(response.get("body").read())
+> 
+> # Example configuration file (routing_config.json):
+> # {
+> #     "routing_rules": [
+> #         {
+> #             "criteria": {"department": "technical", "priority": "high"},
+> #             "model_id": "anthropic.claude-3-opus-20240229-v1:0"
+> #         },
+> #         {
+> #             "criteria": {"department": "sales"},
+> #             "model_id": "anthropic.claude-3-sonnet-20240229-v1:0"
+> #         }
+> #     ],
+> #     "default_model": "anthropic.claude-3-haiku-20240307-v1:0"
+> # }
+> ```
+
+### Dynamic Model Routing
+
+> Dynamic model routing makes **foundation model selection** decisions at runtime based on real-time analysis of input characteristics, system performance, and business requirements.
+
+![[bedrock_dynamic_routing.png]]
+
+> *Amazon Bedrock Intelligent Prompt Routing*.
+#### API Gateway Routing
+
+This Lambda function dynamically selects the optimal Claude model based on user tier and content length. It analyzes incoming requests, routing premium users with long content (>1000 characters) to Claude 3 Opus, medium-length content (>500 characters) to Claude 3 Sonnet, and shorter content to Claude 3 Haiku.
+
+```python
+import json
+import boto3
+
+def lambda_handler(event, context):
+    bedrock = boto3.client('bedrock-runtime')
+    
+    # Analyze request characteristics
+    content_length = len(event['body'])
+    user_tier = event['headers'].get('X-User-Tier', 'basic')
+    
+    # Dynamic model selection logic
+    if user_tier == 'premium' and content_length > 1000:
+        model_id = 'anthropic.claude-3-opus-20240229-v1:0'
+    elif content_length > 500:
+        model_id = 'anthropic.claude-3-sonnet-20240229-v1:0'
+    else:
+        model_id = 'anthropic.claude-3-haiku-20240307-v1:0'
+    
+    # Invoke selected model
+    response = bedrock.invoke_model(
+        modelId=model_id,
+        body=json.dumps({
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 1000,
+            "messages": [{"role": "user", "content": event['body']}]
+        })
+    )
+    
+    return {
+        'statusCode': 200,
+        'body': response['body'].read(),
+        'headers': {
+            'Content-Type': 'application/json',
+            'X-Selected-Model': model_id
+        }
+    }
+```
+
+> Performance-based routing monitors model health and automatically switches to alternative models when performance degrades. CloudWatch alarms trigger fallback mechanisms that maintain service quality during model issues or high load periods.
+
+## Circuit breaker patterns
+
+Circuit breaker patterns **protect distributed systems from cascading failures** by monitoring service health and <mark style="background-color: tomato; color: white;"><u>automatically stopping requests to failing services</u></mark>. In AI applications, circuit breakers prevent failed model calls from overwhelming downstream systems and provide graceful degradation when services become unavailable.
+
+![[bedrock_circuit_breakers.png]]
+
+> [!success] Three states:
+> * Closed (normal operation)
+> * Open (blocking requests)
+> * Half-open (testing recovery)
+
+Circuit breaker patterns provide the following **benefits** for AI applications:
+
+- **Failure isolation**: Prevent failing AI services from affecting other system components.
+- **Resource protection**: Avoid wasting resources on requests likely to fail.
+- **Automatic recovery**: Resume normal operation when services recover.
+- **Graceful degradation**: Maintain partial functionality during service disruptions.
+
+> The purpose of circuit breaker patterns in AI applications is to prevent cascading failures and provide graceful degradation.
+
+**Cross-region failover**: Implement cross-region failover logic that routes requests to AI services in different AWS Regions when regional services become unavailable.
+
+Cross-region inference region selection:
+* Geographic proximity to users and applications
+* The number of available foundation models in each region
+
+> [!success] [!success] **Best practicess*:
+> Implement sliding window calculations to track recent error rates and avoid false positives from temporary service fluctuations.
+> Imlemenent degraded functionality with cached responses or rule-based systems to maintain core functionality.
+> Use Amazon DynamoDB or other storage services to track circuit states, error counts, and timing information.
+
+### Graceful Degradation
+
+Graceful degradation (*a design principle*) maintains essential functionality when AI systems experience disruptions or failures. It covers strategies for implementing fallback mechanisms that preserve core capabilities, manage user expectations, and maintain service continuity during various types of system disruptions.
+### Cached Responses
+
+Serve previously generated results from cache when no other options are available. This approach maintains some level of functionality by reusing past AI outputs for similar requests. Configure intelligent caching that can match current requests to relevant cached responses based on similarity or context.
+
+1. Intelligent caching (serve cached responses for requests that closely match previous queries)
+2. Precomputed responses (batch-generate responses)
+3. Design cache management systems that prioritize high-value responses and adjust retention policies based on system health.
+4. During disruptions, extend cache retention to maximize available responses.
+# 3.  Implement data validation and processing pipelines
+
+**Stack**: AWS Glue, Amazon SageMaker Data Wrangler, and AWS Lambda, Amazon CloudWatch, Step Functions.
+
+> Preprocessing text using Amazon Bedrock for reformatting, extract entities with Amazon Comprehend, and normalize data through Lambda functions.
+
+Input quality impact on model outputs demonstrates the direct relationship between **prompt craftsmanship** and **AI response value**.
+
+### Data Quality
+
+![[bedrock_data_quality.png]]
+
+Foundation models depend on high-quality input data to generate accurate, relevant, and reliable outputs. This input data can take several forms:
+
+- **Prompts**: The questions, instructions, or context provided directly to the model.
+
+- **Retrieved information**: External data from vector databases or knowledge bases used in RAG (Retrieval-Augmented Generation) workflows.
+
+- **Fine-tuning datasets**: Data used to adapt models to specific domains or tasks.
+
+Processing performance metrics
+
+- `ProcessingLatency = EndTime - StartTime`
+- `Throughput = ProcessedRecords / TimeWindow`
+- `ErrorRate = (FailedProcessing / TotalProcessing) * 100`
+- `ResourceUtilization = UsedResources / AllocatedResources`
+
+Measuring the effectiveness of automated responses is most important because feedback loops must evaluate whether remediation actions successfully resolved issues to improve future responses.
+### End to End Workflow
+
+Effective **pipeline architecture patterns** provide the foundation for scalable, maintainable data validation workflows.
+
+Parallel processing runs independent validation steps simultaneously to optimize throughput and reduce overall processing time.
+
+**Best practice**: Choose hybrid processing when you need to balance processing speed with validation dependencies and error handling requirements.
+
+**Quality gates** provide decision points in your validation pipeline where data quality is evaluated against predefined criteria. With conditional processing, you can route data through different paths based on quality metrics, content characteristics, or processing requirements.
+
+### JSON Formatting for Amazon Bedrock API
+
+The basic request structure includes:
+
+- **Model identifier**: Specifies which foundation model to invoke
+- **Request body**: Contains the prompt and configuration parameters
+- **Content type**: Defines the data format (application/json)
+- **Authentication**: AWS credentials for API access
+
+```json
+{
+ "Content-Type": "application/json",
+ "Authorization": "AWS4-HMAC-SHA256 Credential=...",
+ "X-Amz-Date": "20240101T120000Z"
+}
+```
+
+Claude models use a messages-based format ("stream": true for streaming responses). Titan models use a simpler prompt-based structure.
+
+Amazon Bedrock has advanced JSON configuration options that extend model capabilities beyond basic prompting.
+
+Common errors:
+
+- **400 Bad Request**: Invalid JSON structure or missing required fields
+- **413 Payload Too Large**: Request exceeds size limits
+- **429 Too Many Requests**: Rate limiting triggered
+- **500 Internal Server Error**: Service-side processing issues
+
+Use API testing tools like Postman or curl for validation.
+### JSON
+
+To ensure robust data validation in your API requests, implement these critical verification steps:
+
+- **Schema validation**: Use JSON schema validators before sending requests.
+- **Parameter checking**: Verify all required fields are present and correctly formatted.
+- **Type validation**: Verify numeric parameters are numbers, not strings.
+- **Range validation**: Check that parameters fall within acceptable ranges.
+
+```python
+import jsonschema
+
+try:
+   jsonschema.validate(request_data, schema)
+   print("JSON is valid")
+except jsonschema.ValidationError as e:
+   print(f"Validation error: {e.message}")
+```
+
+JSON is the most common format for real-time inference with SageMaker endpoints. You structure your data as key-value pairs that match the model's expected input schema.
+
+JSON is the most common format for real-time inference with **SageMaker endpoints** because it provides flexible key-value pair structures that match model input schemas and supports complex nested data structures required by foundation models.
+
+> [!important]
+> Converting images to base64 encoding for JSON transmission.
+> It is the most important preprocessing step for multimodal inputs because it allows binary image data to be transmitted within JSON payloads alongside text data.
+### Data processing
+
+This data processing pipeline features three interconnected workflows: Text processing (cleaning, normalizing, tokenizing, and removing stopwords), multimodal processing (extracting features, standardizing, and encoding image/audio data), and integration (merging outputs, validating against schemas, and optimizing payloads).
+
+![[bedrock_data_processing.png]]
+#### Text cleaning
+
+```python
+import re
+import unicodedata
+
+def clean_text(text):
+    # Remove HTML tags
+    text = re.sub(r"<[^>]+>", "", text)
+    # Normalize Unicode characters
+    text = unicodedata.normalize("NFKD", text)
+    # Remove extra whitespace
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+```
+
+Balance memory usage and response time based on your application requirements:
+
+- Smaller batch sizes reduce memory usage but might increase overall processing time
+- Larger batch sizes improve throughput but require more memory
+- Monitor endpoint metrics to find optimal batch sizes for your use case
+
+### Schemas
+
+The Amazon Bedrock Claude models use a specific JSON structure for conversations. You format messages with distinct roles and content fields (role, content, system).
+
+OpenAI-compatible models use a chat completion format with system, user, and assistant roles. You structure conversations as arrays of message objects (messages: role, content).
+
+Meta Llama models use special tokens to delineate conversation turns and roles. You format conversations with specific token patterns.
+
+> Effective preprocessing verifies that your data matches model expectations and optimizes inference performance.
+
+```python
+def truncate_conversation(messages, max_tokens, tokenizer):
+    total_tokens = 0
+    truncated_messages = []
+
+    # Always keep system message
+    if messages[0]["role"] == "system":
+        truncated_messages.append(messages[0])
+        total_tokens += count_tokens(messages[0]["content"], tokenizer)
+        messages = messages[1:]
+
+    # Add messages from most recent, working backwards
+    for message in reversed(messages):
+        message_tokens = count_tokens(message["content"], tokenizer)
+
+        if total_tokens + message_tokens <= max_tokens:
+            truncated_messages.insert(-1 if truncated_messages else 0, message)
+            total_tokens += message_tokens
+        else:
+            break
+
+    return truncated_messages
+```
+### Reformatting
+
+```markdown
+Reformat the following unstructured text into a clear, organized format:
+- Use bullet points for key information
+- Standardize capitalization and punctuation
+- Group related concepts together
+- Remove redundant phrases
+Input text: [messy text content]
+```
+### Normalization
+
+```python
+import re
+import string
+
+def standardize_text(text):
+   # Normalize whitespace
+   text = re.sub(r'\s+', ' ', text).strip()
+   # Standardize punctuation spacing
+   text = re.sub(r'\s*([' + re.escape(string.punctuation) + r'])\s*', r'\1 ', text)
+   # Fix common capitalization issues
+   text = re.sub(r'\b([a-z])([A-Z])', r'\1 \2', text)
+   # Remove extra punctuation
+   text = re.sub(r'[.]{2,}', '.', text)
+   return text.strip()
+```
+### Lambda Processing
+
+Create a serverless preprocessing pipeline that normalizes data inline with inference requests.
+
+```python
+import json
+import boto3
+import re
+from datetime import datetime
+
+def lambda_handler(event, context):
+   # Extract input text from event
+   input_text = event.get('text', '')
+
+   # Apply normalization functions
+   normalized_text = normalize_data(input_text)
+
+   # Return normalized result
+   return {
+       'statusCode': 200,
+       'body': json.dumps({
+           'original_text': input_text,
+           'normalized_text': normalized_text,
+           'processing_timestamp': datetime.utcnow().isoformat()
+       })
+   }
+
+def normalize_data(text):
+
+   # Remove irrelevant symbols and tokens
+   text = remove_noise(text)
+   # Standardize measurements and units
+   text = normalize_measurements(text)
+   # Standardize date formats
+   text = normalize_dates(text)
+   # Clean and format for model schema
+   text = conform_to_schema(text)
+   return text
+
+def remove_noise(text):
+   # Remove excessive punctuation
+   text = re.sub(r'[!]{2,}', '!', text)
+   text = re.sub(r'[?]{2,}', '?', text)
+   # Remove non-printable characters
+   text = ''.join(char for char in text if char.isprintable())
+   # Remove excessive whitespace
+   text = re.sub(r'\s+', ' ', text).strip()
+   return text
+
+def normalize_measurements(text):
+   # Standardize common measurement units
+   text = re.sub(r'\b(\d+)\s*(lbs?|pounds?)\b', r'\1 lb', text, flags=re.IGNORECASE)
+   text = re.sub(r'\b(\d+)\s*(kgs?|kilograms?)\b', r'\1 kg', text, flags=re.IGNORECASE)
+   text = re.sub(r'\b(\d+)\s*(hrs?|hours?)\b', r'\1 hours', text, flags=re.IGNORECASE)
+   return text
+   
+def invoke_with_preprocessing(text, model_endpoint):
+
+   # Invoke Lambda for preprocessing
+   lambda_client = boto3.client('lambda')
+   preprocessing_response = lambda_client.invoke(
+       FunctionName='text-normalization-function',
+       Payload=json.dumps({'text': text})
+   )
+   normalized_data = json.loads(preprocessing_response['Payload'].read())
+   normalized_text = normalized_data['body']['normalized_text']
+   # Send normalized text to foundation model
+   model_response = invoke_foundation_model(normalized_text, model_endpoint)
+   return model_response
+```
+## Multimodal Data
+
+Multimodal data processing represents a fundamental shift in how foundation models consume and understand information. When you work with multimodal data, you combine different types of content such as text, images, audio, and video to create richer, more comprehensive datasets for foundation model training and inference. This approach mirrors human perception, where we naturally process multiple sensory inputs simultaneously to understand our environment.
+
+![[bedrock_multimodal.png]]
+
+Amazon Bedrock Multimodal Models enable organizations to work with complex data types simultaneously, breaking down traditional barriers between text, image, and other content formats. These powerful foundation models understand the intricate relationships between different modalities, opening new possibilities for AI-driven insights and applications. To learn more, expand each of the following three tabs.
+
+> [!note] Note
+> When you design multimodal processing workflows, consider the data flow between services and plan for appropriate error handling and quality validation at each processing stage.
+
+Timestamp synchronization verifies that transcribed audio content maintains accurate temporal alignment with visual content. This synchronization is important for creating coherent multimodal outputs where audio and visual elements need precise timing coordination.
+
+Amazon Transcribe converts speech to text, providing a foundation for processing audio content in multimodal workflows. The service supports various audio formats, multiple languages, and specialized features like speaker identification and custom vocabulary.
+
+> **Speaker diarization** identifies different speakers in audio content, which becomes important when processing complex audio-visual content with multiple participants. Advanced diarization techniques can handle overlapping speech, background noise, and varying audio quality conditions.
+
+Context window management becomes important when processing large multimodal content that exceeds model input limitations. Effective management involves content chunking strategies, priority-based content selection, and maintaining context continuity across processing segments.
+
+> [!error]
+> Selecting appropriate baseline periods for model training for CloudWatch Anomaly Detection (proper baseline data for model training).
+
+The primary benefit is handling complex validation scenarios that require domain expertise or subjective judgment that automated systems cannot provide effectively.
+# 4.  Design and implement vector store solutions
+
+> [!success]
+> **Blue-green deployment strategies** enable safe model updates by maintaining parallel versions during transitions with immediate rollback capabilities if issues arise. It is a recommended practice for embedding model governance in enterprise environments.
+> 
+> **The Storage-Retrieval Alignment Strategy** emphasizes analyzing access patterns, user behavior, and business workflows to design extensible metadata schemas that accommodate future requirements.
+> 
+> In-memory caching for frequently accessed vectors with optimized cache size configuration has the greatest impact on vector retrieval speed at enterprise scale.
+> 
+> End-to-end testing provides comprehensive validation of integration reliability by testing complete data flows across all system components.
+> 
+> Prioritization algorithms determine the order in which changes are processed, balancing urgency with resource efficiency by considering content importance, user access patterns, business importance, and temporal factors.
+
+Vector databases store high-dimensional numerical representations of data. Each vector represents semantic meaning, turning on similarity-based retrieval operations that power foundation model applications.
+
+> 📱 Stack: Bedrock Knowledge Bases, OpenSearch Neural Plugin, and hybrid Amazon Relational Database Service (Amazon RDS) and Amazon S3 solutions.
+> 
+> Integration architecture connects AI applications with enterprise data through AWS services like **Amazon Kendra**, **AWS Lambda**, and **Amazon API Gateway**.
+
+![[bedrock_embeddings.png]]
+
+Different models create embeddings optimized for specific tasks, such as **text similarity**, **image recognition**, or **multimodal understanding**.
+
+Embeddings typically contain hundreds or thousands of dimensions, with each dimension representing **a learned feature**.
+
+> [!note]
+> **Cosine similarity** is calculated by using the dot product of normalized vectors. This approach makes cosine similarity particularly effective for comparing documents of different lengths or when magnitude differences don't indicate semantic differences.
+> 
+> **Euclidean distance** works well when the magnitude of embedding values carries semantic meaning. However, it can be sensitive to the dimensionality of vectors and might not perform as well as cosine similarity for high-dimensional text embeddings.
+> 
+> **Dot product similarity** multiplies corresponding vector elements and sums the results. This metric combines both the angle and magnitude of vectors, providing a measure that considers both semantic similarity and content intensity.
+> 
+> OpenSearch Service implements these operations through specialized vector field types and **k-nearest neighbor (k-NN)** search capabilities.
+### Vector Storage
+
+> Vector databases excel in **recommendation systems**, **semantic search**, **content discovery**, and AI applications requiring **similarity matching**.
+
+Vector databases store high-dimensional arrays alongside metadata, optimizing for mathematical operations rather than relational queries.
+
+Vector databases use specialized indexing structures like **Hierarchical Navigable Small World** (HNSW) graphs or **Inverted File** (IVF) indexes to turn on efficient similarity search. These structures sacrifice some precision for speed, by using approximate nearest neighbor algorithms to find similar vectors quickly.
+### Graph construction parameters
+
+> Hierarchical Navigable Small World (HNSW) graphs provide efficient approximate nearest neighbor search through multi-level graph structures. OpenSearch Service implements HNSW indexing with configurable parameters for different performance profiles.
+
+* **M**: Maximum connections per node (higher M = better recall, more memory)
+- **ef_construction**: Search width during index building (higher = better quality, slower indexing)
+- **max_connections**: Upper limit on node connections
+- **ef_search**: Search width during queries (higher = better recall, slower queries)
+- **num_candidates**: Number of candidates to evaluate
+- **rescore**: Turn on rescoring for improved accuracy
+- **cache_size**: In-memory cache for frequently accessed vectors
+- **thread_pool_size**: Parallel processing configuration
+- **segment_size**: Index segment optimization
+
+The query process in vector databases involves **calculating distances between the query vector and stored vectors**, then **ranking results** by similarity score. This approach turns on semantic search capabilities that traditional keyword-based systems cannot provide.
+### RAG
+
+Vector databases turn on augmentation by providing efficient access to relevant information during inference. Vector search integration involves converting user queries into embeddings by <mark style="background-color: tomato; color: white;"><u style="background-color: tomato; color: white;"><u>using the same model</u></u></mark> that created the stored embeddings. You organize content into chunks optimized for both embedding generation and foundation model context windows.
+
+> [!success]
+When you submit a query, the system first searches the vector database for relevant information, then provides this context to the foundation model for response generation.
+>
+> This approach offers several advantages over fine-tuning or training larger models.
+> 
+> You can **update the knowledge base without retraining the model**, maintain data freshness, and provide attribution for generated responses. RAG also reduces hallucination by grounding responses in retrieved facts.
+### AWS Vector Database Services
+
+* **Amazon Bedrock Knowledge Bases**
+	* Knowledge Bases excels in scenarios where **rapid deployment** and **minimal operational overhead** are priorities, particularly for teams focused on application development rather than infrastructure management.
+	* Amazon Bedrock Knowledge Bases provides a managed service for organizing and retrieving knowledge in **hierarchical structures** that maintain document relationships while optimizing for semantic retrieval, abstracting underlying complexity from applications.
+* **Amazon OpenSearch Service (Neural Plugin)** - vector fields are used with OpenSearch indexes and Neural Plugin is used to generate embeddings during ingestion or query time)
+* **Amazon S3 Vector Stores**
+* **Amazon RDS (pgvector for PostgreSQL)** - allows to combine structured data with embeddings in a single system. This option is ideal for organizations with existing PostgreSQL expertise who need to maintain **relationships between structured data and vector embeddings**.
+* **Amazon DynamoDB** with vector extensions
+* **Specialized vector databases** (Pinecone, hosting on EC2)
+	* Pinecone provides a fully managed hybrid vector database optimized specifically for **high-performance vector operations**. It supports vectors with up to 20,000 dimensions and delivers very high throughput for near real-time applications.
+	* Pinecone integrates with Amazon Bedrock through APIs and SDKs, offering specialized vector indexing optimized for similarity search. This option is ideal for use cases where vector search performance is the primary consideration and specialized vector operations are required.
+* **Redis Enterprise Cloud** offers an in-memory vector storage solution for applications requiring extremely low latency.
+	* It integrates with AWS through the Amazon Bedrock API and supports Redis protocol compatibility.
+	* Redis Enterprise Cloud is particularly well-suited for latency-sensitive applications where milliseconds matter, such as real-time personalization or fraud detection systems.
+
+**Hierarchical vs topic-based approaches**
+
+* **Hierarchical organization**: Implement parent-child relationships that reflect natural knowledge hierarchies, such as _Finance > Accounting > Tax Compliance_, to enable both broad and specific content classification.
+* **Namespace separation**: Use prefixes to separate different classification dimensions, such as depth, topic, and security, to prevent tag collision and enable multi-faceted classification without confusion.
+
+Hybrid storage architectures store structured metadata, relationships, and references in Amazon RDS while keeping document content and embeddings in Amazon S3, optimizing each storage system for its strengths.
+
+Partition vectors by content domain or data source:
+
+- Medical documents in dedicated shards
+- Legal content in separate index partitions
+- Product catalogs in domain-specific shards
+
+Benefits include optimized queries within domains, specialized configurations per domain.
+
+**Benchmarking strategies**
+
+- Query latency percentiles (p50, p95, p99)
+- Throughput measurements (queries per second)
+- Resource utilization metrics (CPU, memory, I/O)
+- Accuracy measurements (recall@k, precision@k)
+### Document Metadata Management
+
+* Created and modified timestamps
+	* Use creation timestamp for compliance and audit requirements
+	* Update modification timestamp for any content changes
+
+Comprehensive authorship metadata includes multiple role categories:
+
+- **Primary author**: Original content creator with full attribution and responsibility
+- **Contributing authors**: Additional content creators with specific contribution areas
+- **Editors**: Content reviewers and modifiers with editing timestamps and change descriptions
+- **Reviewers**: Quality assurance personnel with approval status and review comments
+- **Approvers**: Authorization personnel with final approval status and compliance verification
+
+> Domain classification (legal, medical, technical)
+
+Organize content by subject matter expertise:
+
+- **Healthcare**: Specialty → Sub-specialty → Procedure type
+- **Legal**: Practice area → Document type → jurisdiction    
+- **Financial**: Product category → Risk level → Regulatory framework    
+- **Benefits**: Domain expertise integration, specialized processing workflows
+
+Structure content by business function:
+
+- Operations → Department → Process → Document type
+- Marketing → Campaign → Channel → Content format
+- Research → Project → Phase → Deliverable type
+- **Benefits**: Business alignment, workflow integration, access control
+
+Organize content by time-based relationships:
+
+- Year → Quarter → Month → Content type    
+- Project phase → Milestone → Deliverable → Version
+- Regulatory period → Compliance Cycle → Requirement → Evidence
+- **Benefits**: Lifecycle management, compliance tracking, historical analysis
+#### S3 metadata
+
+Amazon S3 utilizes two distinct types of metadata: system-generated metadata that is automatically created and managed by Amazon S3 itself, and user-defined metadata that you create and control.
+
+System-defined metadata is automatically generated by Amazon S3 and cannot be modified whereas user-defined metadata uses the x-amz-meta prefix.
+
+By thoughtfully implementing metadata, you transform your Amazon S3 storage from a basic repository into a sophisticated, well-organized, and easily searchable data management system that better serves your operational needs.
+
+Effective metadata schema design must balance comprehensive contextual information with the 2KB limit per object of Amazon S3 whereas maintaining consistent naming conventions for interoperability.
+#### **Push model**  
+
+* Source systems initiate data transfer to AI applications
+* Requires webhook endpoints and event receivers
+* Needs authentication and authorization for incoming data
+* Requires rate limiting and data validation mechanisms
+#### **Pull model**  
+
+* AI applications request data from source systems
+* Implements polling mechanisms and change detection
+* Requires efficient querying and incremental data retrieval
+* Needs scheduling and resource management for pull operations
+### Key services for integration
+
+AWS provides a comprehensive suite of managed services specifically designed to address common integration challenges and requirements.
+
+These services include:
+
+- **AWS Lambda**: Serverless compute for data transformation and event processing
+- **Amazon API Gateway**: Managed API service for secure and scalable endpoints
+- **Amazon EventBridge**: Event routing service for decoupled integration
+- **AWS Step Functions**: Workflow orchestration for complex integration processes
+### Bank use case
+
+> [!example]
+> The bank maintained over 15 million regulatory documents across siloed systems, with 10,000+ new documents added monthly.
+> 
+> Compliance staff faced three critical problems:
+> 
+> - Information fragmentation across multiple repositories
+> - Slow response times to regulatory inquiries (averaging 3-5 business days)
+> - Inconsistent interpretation of regulations across global offices
+>
+> The bank collaborated with AWS Professional Services to develop an integration architecture connecting their generative AI platform with enterprise data sources. This included document management systems, regulatory knowledge bases, and internal collaboration platforms.
+### Amazon Kendra for indexing and querying
+
+- **SharePoint**: Native connector with OAuth 2.0 authentication
+- **Confluence**: REST API integration with incremental sync
+- **File Systems**: Custom crawler with change detection
+- **Databases**: JDBC connector for structured content
+### Model capabilities
+
+- Amazon Titan Text Embeddings V2 supports up to 8,192 input tokens with configurable output dimensions (256-1,024) for optimal balance between accuracy and storage
+- Amazon Titan Multimodal Embeddings processes both text (up to 128 tokens) and images (up to 2048x2048 pixels), generating unified 1,024-dimensional vector representations
+### Domain-specific considerations
+
+Optimize embedding configurations based on content type and business requirements:
+
+- Technical documentation benefits from higher dimensions to capture specialized terminology and code relationships
+- Legal content requires maximum dimensionality for regulatory nuance and contractual precision
+- Customer support materials work well with balanced dimensions for query understanding and response matching
+- Product catalogs need optimized configurations for feature representation and customer intent matching
+
+Implement complementary processing strategies to balance throughput, latency, and resource utilization:
+
+- Batch processing with AWS Lambda, ECS, or AWS Batch optimizes resource utilization for large-scale content ingestion
+- Real-time generation supports immediate query responses and interactive applications through direct API integration
+- Hybrid approaches combine scheduled batch processing with on-demand generation for optimal performance and cost
+
+>   Hybrid approach with batch processing for bulk updates and real-time generation for immediate changes.
+# 5.  Design retrieval mechanisms for FM augmentation
+
+## Chunking
+
+* Smaller chunks provide more precise retrieval but might lose important contextual information.
+* Larger chunks maintain context but can introduce noise and **exceed token limits**.
+
+Segmented documents help you implement parallel processing and caching strategies. You can process, embed, and index chunks independently, which improves system performance and scalability. Additionally, you can cache frequently accessed chunks to reduce latency in retrieval operations.
+
+Calculate the semantic similarity between sentences within each chunk using embedding models --> High intra-chunk similarity scores indicate **good cohesion**.
+
+Hierarchical chunking recognizes that documents have **natural structural hierarchies** that you can preserve during segmentation. Implement relationship tracking through **metadata** schemas that capture hierarchical connections, section numbering, and cross-references.
+
+Bedrock implements four chunking strategies (Bedrock native chunking). It's recommended for standard formats (PDF, Word, text).
+
+- **Fixed-size chunking** - Splits documents into chunks of a predetermined size (measured in tokens or characters), with optional overlap between chunks to maintain context.
+- **Default chunking** - Uses Bedrock's default settings optimized for general use cases, automatically determining chunk sizes based on the document type.
+- **Hierarchical chunking** - Creates chunks that respect document structure (like headings, paragraphs, and sections), maintaining the semantic hierarchy of the content.
+- **Semantic chunking** - Intelligently groups content based on semantic similarity and meaning, keeping related concepts together rather than splitting arbitrarily by size.
+
+- **Fixed-size chunking** - Splits documents into chunks of a predetermined size (measured in tokens or characters), with optional overlap between chunks to maintain context.
+- **Default chunking** - Uses Bedrock's default settings optimized for general use cases, automatically determining chunk sizes based on the document type.
+- **Hierarchical chunking** - Creates chunks that respect document structure (like headings, paragraphs, and sections), maintaining the semantic hierarchy of the content.
+- **Semantic chunking** - Intelligently groups content based on semantic similarity and meaning, keeping related concepts together rather than splitting arbitrarily by size.
+
+```python
+{
+  "chunkingStrategy": "FIXED_SIZE",
+  "fixedSizeChunkingConfiguration": {
+     "maxTokens": 512,
+      "overlapPercentage": 20
+ }
+}
+```
+
+>[!warning] Lambda
+>Use Lambda when processing documents with complex layouts, embedded tables, code blocks, or specialized formatting that requires custom handling logic.
+
+```python
+{
+  "customTransformationConfiguration": {
+    "transformationLambdaArn": "arn:aws:lambda:region:account-id:function:your-chunking-function"
+  }
+}
+```
+
+Amazon Bedrock automatically handles storing your chunks and indexing them in the Knowledge Base. You don't need to implement separate storage logic as the Knowledge Base service manages this for you. 
+
+Here's what a custom Lambda chunking looks like:
+
+```python
+def custom_chunker(text, chunk_size=512, overlap=0.2):
+    # Implement domain-specific chunking logic
+    chunks = []
+    overlap_size = int(chunk_size * overlap)
+    for i in range(0, len(text), chunk_size - overlap_size):
+        chunk = text[i:i + chunk_size]
+        chunks.append({
+            'content': chunk,
+            'start_index': i,
+            'metadata': extract_metadata(chunk)
+        })
+    return chunks
+
+def lambda_handler(event, context):
+    # Extract document content and metadata
+    document_content = event['content']
+    document_metadata = event.get('metadata', {})
+    # Implement your custom chunking logic
+    chunks = custom_chunker(document_content, chunk_size=512, overlap=0.2)
+    # Format chunks according to Bedrock Knowledge Base requirements
+    formatted_chunks = []
+    for i, chunk in enumerate(chunks):
+        formatted_chunks.append({
+            'content': chunk['content'],
+            'metadata': {
+                **document_metadata,
+                'chunk_id': i,
+                'start_index': chunk['start_index']
+                # Add any additional metadata
+            }
+        })
+    return {
+        'chunks': formatted_chunks
+    }
+```
+## Vector Search
+
+The final layers of the foundation model generate dense vector representations that capture the semantic content of the input text. Vector embeddings exist in high-dimensional mathematical spaces where semantic similarity corresponds to geometric proximity.
+
+![[bedrock_vectors.png]]
+
+Cosine similarity = the angle between vectors regardless of their magnitude.
+
+> [!success] Hybrid Search (vector + keywords)
+> Use vector search for semantic matching and keyword search for exact terms, then combine results using relevance scoring.
+
+pgvector works for both relational and vector operations (ACID compliant). S3 Vectors are good for cost optimization for large datasets, e.g. *you need to store billions of vectors cost-effectively with simplified architecture and don't require sub-100ms query latency*.
+
+> [!success] Patterns
+> Most applications fit one of these patterns: high-performance search (OpenSearch), database integration (Aurora), cost optimization (S3), or rapid RAG deployment (Bedrock).
+
+S3 Vector Store example:
+
+```python
+import boto3
+import json
+import numpy as np
+
+class S3VectorStore:
+    def __init__(self, bucket_name='vector-store', prefix='vectors/'):
+        self.s3 = boto3.client('s3')
+        self.bucket_name = bucket_name
+        self.prefix = prefix
+    
+    def store_vector(self, doc_id, embedding, metadata=None):
+        """Store a vector embedding with metadata in S3"""
+        if metadata is None:
+            metadata = {}
+        
+        # Convert numpy arrays to lists for JSON serialization
+        if isinstance(embedding, np.ndarray):
+            embedding = embedding.tolist()
+        
+        # This is the core operation - storing the vector in S3
+        self.s3.put_object(
+            Bucket=self.bucket_name,
+            Key=f'{self.prefix}{doc_id}.json',
+            Body=json.dumps({'vector': embedding, 'metadata': metadata}),
+            ContentType='application/json'
+        )
+        return {'status': 'success', 'doc_id': doc_id}
+    
+    def get_vector(self, doc_id):
+        """Retrieve a vector by document ID"""
+        response = self.s3.get_object(
+            Bucket=self.bucket_name,
+            Key=f'{self.prefix}{doc_id}.json'
+        )
+        data = json.loads(response['Body'].read().decode('utf-8'))
+        return data
+    
+    def search_similar(self, query_vector, top_k=5):
+        """Find similar vectors using cosine similarity"""
+        # List all vectors
+        response = self.s3.list_objects_v2(
+            Bucket=self.bucket_name,
+            Prefix=self.prefix
+        )
+        results = []
+        
+        # Process each vector
+        for item in response.get('Contents', []):
+            # Get vector data
+            vector_data = self.get_vector(
+                item['Key'].replace(self.prefix, '').replace('.json', '')
+            )
+            
+            # Calculate similarity
+            similarity = self._cosine_similarity(
+                query_vector,
+                vector_data['vector']
+            )
+            
+            results.append({
+                'doc_id': item['Key'].replace(self.prefix, '').replace('.json', ''),
+                'similarity': similarity,
+                'metadata': vector_data['metadata']
+            })
+        
+        # Sort by similarity (highest first)
+        results.sort(key=lambda x: x['similarity'], reverse=True)
+        
+        # Return top k results
+        return results[:top_k]
+    
+    def _cosine_similarity(self, v1, v2):
+        """Calculate cosine similarity between two vectors"""
+        v1 = np.array(v1)
+        v2 = np.array(v2)
+        return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+```
+
+Bedrock KB (RAG-specific):
+
+```python
+# Bedrock Knowledge Base query
+response = bedrock.retrieve(
+	knowledgeBaseId='kb-123',
+	retrievalQuery={'text': user_query},
+	retrievalConfiguration={'vectorSearchConfiguration': {'numberOfResults': 10}}
+)
+```
+
+Batching embeddings:
+
+```python
+# Batch processing workflow
+def process_document_batch(s3_bucket, batch_size=100):
+    # Retrieve documents from S3
+    documents = get_documents_from_s3(s3_bucket, batch_size)
+    # Generate embeddings in batches
+    embeddings = []
+    for batch in chunk_documents(documents, batch_size):
+        batch_embeddings = embedding_model.embed_batch(batch)
+        embeddings.extend(batch_embeddings)
+    # Store results
+    store_embeddings(embeddings, vector_store)
+    return len(embeddings)
+```
+## Configuring Knowledge Bases
+
+> Redis Enterprise Cloud offers in-memory vector search with low-latency performance.
+
+![[bedrock_vector_storage.png]]
+
+Semantic retrieval capabilities help your Knowledge Bases to find relevant information based on **meaning and context** rather than keyword matching, providing the foundation for sophisticated RAG applications. The retrieval system combines **vector similarity search** with **metadata filtering and ranking algorithms** to deliver precise, contextually relevant results.
+## Rerankers
+
+Reranking introduces a two-stage architecture where an initial retrieval phase generates candidate documents, followed by **a sophisticated reranking phase** that applies advanced relevance models to optimize result ordering.
+
+![[bedrock_rerankers.png]]
+
+| Phase 1                  | Phase 2                                      |
+| ------------------------ | -------------------------------------------- |
+| **Candidate generation** | **Relevance assessment phases**              |
+| Retrieval signals (RAG). | BERT, cross-encoder, NDCG, MRR, precision@k. |
+We can use this Python function to evaluate Bedrock reranker model performance with query-document pairs.
+
+```python
+import boto3
+import json
+
+def evaluate_reranker_model(bedrock_client, model_id, query_document_pairs):
+    """Evaluate Bedrock reranker model performance"""
+    results = []
+    
+    for query, documents in query_document_pairs:
+        # Prepare reranking request
+        rerank_request = {
+            'queries': [{'type': 'TEXT', 'textQuery': {'text': query}}],
+            'sources': [
+                {
+                    'type': 'INLINE',
+                    'inlineDocumentSource': {
+                        'type': 'TEXT',
+                        'textDocument': {'text': doc['content']}
+                    }
+                }
+                for doc in documents
+            ],
+            'rerankingConfiguration': {
+                'type': 'BEDROCK',
+                'bedrockRerankingConfiguration': {
+                    'modelConfiguration': {
+                        'modelArn': f'arn:aws:bedrock:region::foundation-model/{model_id}'
+                    },
+                    'numberOfResults': len(documents)
+                }
+            }
+        }
+        
+        # Run the reranking
+        response = bedrock_client.rerank(**rerank_request)
+        
+        # Process results
+        reranked_results = [
+            {
+                'document_id': result['index'],
+                'relevance_score': result['relevance_score'],
+                'original_rank': idx
+            }
+            for idx, result in enumerate(response['results'])
+        ]
+        
+        results.append({
+            'query': query,
+            'reranked_results': reranked_results
+        })
+    
+    return results
+```
+
+> [!tip] Tips
+> **Signal weighting strategies** balance the contribution of different retrieval methods based on query characteristics and application requirements.
+> Use normalization methods such as min-max scaling, z-score normalization, or rank-based normalization that create comparable score ranges across different signals.
+## Result merging and fusion strategies
+
+* Reciprocal rank fusion (RRF)
+* Weighted scoring approaches
+* Machine learning-based fusion
+* Adaptive fusion strategies
+
+**For deployment**: canary deployments, feature flags, and traffic shifting to control rollout pace and allow quick rollback when issues occur. Set up deployment monitoring to track system health and performance throughout rollout phases.
+## Query expansion
+
+```python
+expansion_prompt = """
+Expand the following query to include related terms, synonyms, and alternative expressions while preserving the original intent:
+Query: {original_query}
+Provide 3-5 related terms that would help find relevant information:
+"""
+# Use the prompt with Bedrock
+formatted_prompt = expansion_prompt.format(original_query="machine learning algorithms")
+response = bedrock_client.invoke_model(
+   modelId="anthropic.claude-3-sonnet-20240229-v1:0",
+   body=json.dumps({"messages": [{"role": "user", "content": formatted_prompt}]})
+)
+```
+
+Use Amazon S3 for temporary data storage and DynamoDB for state management.
+
+- **DCG (Normalized Discounted Cumulative Gain)** is a ranking quality metric that measures how well your search results are ordered by considering both relevance and position.
+- **NDCG@10** specifically measures ranking quality for only the top 10 results. It answers: "How well did you rank the first 10 results compared to the perfect order?"
+
+![[bedrock_vector_interfaces.png]]
+## AWS Lambda function design and deployment
+
+Design AWS Lambda functions for vector search to create serverless, scalable implementations. Use integration patterns that hide the specific details of each service behind a common interface so you can switch between different vector databases without changing your application code.
+
+![[bedrock_authentification.png]]
+
+![[bedrock_finance.png]]
+
+```python
+# Search for similar transaction patterns
+def search_similar_transactions(transaction_vector, threshold=0.8):
+  similar_transactions = vector_db.search(
+      vector=transaction_vector,
+      similarity_threshold=threshold,
+      limit=10
+  )
+  return [t for t in similar_transactions if t.risk_score > 0.7]
+
+def analyze_customer_profile(customer_id, current_transaction):
+   profile = get_customer_profile(customer_id)
+   risk_factors = {
+       'unusual_amount': current_transaction.amount > profile.avg_amount * 3,
+       'new_location': current_transaction.location not in profile.locations,
+       'off_hours': is_outside_normal_hours(current_transaction.timestamp)
+   }
+   return calculate_risk_score(risk_factors)
+ 
+def assess_transaction_risk(transaction):
+   risk_score = 0
+   risk_score += check_amount_risk(transaction.amount)
+   risk_score += check_location_risk(transaction.location)
+   risk_score += check_velocity_risk(transaction.customer_id)
+   if risk_score > 0.8:
+       return 'BLOCK'
+   elif risk_score > 0.5:
+       return 'REVIEW'
+   return 'APPROVE'
+```
+## RAG Caching
+
+Effective RAG caching implementations leverage three complementary approaches to optimize performance while maintaining information freshness:
+
+- **Tiered caching architecture:** Implements multi-level caching across memory, disk, and distributed systems to optimize retrieval based on access patterns. Supports both query-based and document-based approaches, with semantic similarity caching extending utility to conceptually related queries.
+- **Adaptive caching mechanisms:** Dynamically adjusts caching behavior using frequency analysis, context awareness, and predictive prefetching. Allocates resources efficiently by prioritizing commonly accessed information and incorporating user session data for relevance.
+- **Embedding-based caching:** Stores vector embeddings rather than full documents, significantly reducing storage requirements while maintaining semantic search capabilities. Utilizes approximate nearest neighbor lookups and compression techniques to optimize memory utilization.
+## Working with Bedrock Knowledge Bases from SageMaker
+
+Accessing a knowledge base in S3:
+
+```python
+import boto3
+from botocore.client import Config
+import pprint
+import json
+
+pp = pprint.PrettyPrinter(indent=2)
+
+session = boto3.session.Session()
+region = session.region_name
+
+bedrock_config = Config(
+    connect_timeout=120, read_timeout=120, retries={"max_attempts": 0}
+)
+bedrock_client = boto3.client("bedrock-runtime", region_name=region)
+bedrock_agent_client = boto3.client(
+    "bedrock-agent-runtime", config=bedrock_config, region_name=region
+)
+
+import botocore
+
+session = boto3.Session()
+bedrock_client = session.client('bedrock-agent')
+
+try:
+    response = bedrock_client.list_knowledge_bases(
+        maxResults=1  # We only need to retrieve the first Knowledge Base
+    )
+    knowledge_base_summaries = response.get('knowledgeBaseSummaries', [])
+
+    if knowledge_base_summaries:
+        kb_id = knowledge_base_summaries[0]['knowledgeBaseId']
+        print(f"Knowledge Base ID: {kb_id}")
+    else:
+        print("No Knowledge Base summaries found.")
+        
+except botocore.exceptions.ClientError as e:
+    print(f"Error: {e}")
+    
+query = "Provide a short summary of consolidated statements of cash flows of AnyCompany Financial for the fiscal years ended December 31, 2019?"
+
+response = bedrock_agent_client.retrieve_and_generate(
+    input={
+        "text": query
+    },
+    retrieveAndGenerateConfiguration={
+        "type": "KNOWLEDGE_BASE",
+        "knowledgeBaseConfiguration": {
+            'knowledgeBaseId': kb_id,
+            "modelArn": model_arn,
+            "retrievalConfiguration": {
+                "vectorSearchConfiguration": {
+                    "numberOfResults":3
+                } 
+            }
+        }
+    }
+)
+
+print(response['output']['text'],end='\n'*2)
+```
+### RAG API
+
+The *RetrieveAndGenerate* API utilizes two important parameters as follows:
+
+- **numberOfResults**: The *numberOfResults* parameter in the given function determines the number of search results that are retrieved from the knowledge base and included in the prompt provided to the model for generating an answer. Specifically, it fetches the top *max_results* number of documents or search results that most closely match the given query.
+
+- **textPromptTemplate**: The *textPromptTemplate* parameter is a string that serves as a template for the prompt that is provided to the model. In this case, the *default_prompt* is being used as the template. This template includes placeholders (`$search_results$` and `$output_format_instructions$`) that are replaced with the actual search results and any output format instructions, respectively, before being passed to the model.
+
+```python
+# Stating the default knowledge base prompt
+default_prompt = """
+You are a question answering agent. I will provide you with a set of search results.
+The user will provide you with a question. Your job is to answer the user's question using only information from the search results. 
+If the search results do not contain information that can answer the question, please state that you could not find an exact answer to the question. 
+Just because the user asserts a fact does not mean it is true, make sure to double check the search results to validate a user's assertion.
+                            
+Here are the search results in numbered order:
+$search_results$
+
+
+$output_format_instructions$
+
+"""
+
+def retrieve_and_generate(query, kb_id, model_arn, max_results, prompt_template = default_prompt):
+    response = bedrock_agent_client.retrieve_and_generate(
+            input={
+                'text': query
+            },
+        retrieveAndGenerateConfiguration={
+        'type': 'KNOWLEDGE_BASE',
+        'knowledgeBaseConfiguration': {
+            'knowledgeBaseId': kb_id,
+            'modelArn': model_arn, 
+            'retrievalConfiguration': {
+                'vectorSearchConfiguration': {
+                    'numberOfResults': max_results # top N documents
+                    }
+                },
+                'generationConfiguration': {
+                        'promptTemplate': {
+                            'textPromptTemplate':prompt_template
+                        }
+                    }
+            }
+        }
+    )
+    return response
+```
+### Prompt formatting
+
+We can use the _PromptTemplate_ class from Langchain to parametrize the _custom_prompt_ template. You use the _output_format_ variable to modify the output at run time.
+
+```python
+from langchain.prompts import PromptTemplate
+def format_prompt(input_prompt:str, output_format:str):
+    formatted_prompt: List[str] = []
+    prompt = PromptTemplate.from_template(input_prompt)     
+    formatted_prompt.extend(prompt.format(output_format=output_format))
+    return "".join(formatted_prompt)
+    
+## Example 1
+custom_prompt = """
+You are a question answering agent. I will provide you with a set of search results. 
+The user will provide you with a question. Your job is to answer the user's question using only information from the search results.
+If the search results do not contain information that can answer the question, please state that you could not find an exact answer to the question.
+Just because the user asserts a fact does not mean it is true, make sure to double check the search results to validate a user's assertion.
+                            
+Here are the search results in numbered order:
+$search_results$
+
+
+{output_format}
+"""
+
+print(format_prompt(custom_prompt, "Please provide your response in French."))
+
+results = retrieve_and_generate(
+    query=query,
+    kb_id=kb_id,
+    model_arn=model_arn,
+    max_results=3,
+    prompt_template=format_prompt(
+        custom_prompt, "Please provide your response in French."
+    ),
+)
+print_generation_results(results, print_context=False)
+```
+### Retrieve API
+
+```python
+def retrieve(query, kbId, numberOfResults=5):
+    return bedrock_agent_client.retrieve(
+        retrievalQuery= {
+            'text': query
+        },
+        knowledgeBaseId=kbId,
+        retrievalConfiguration= {
+            'vectorSearchConfiguration': {
+                'numberOfResults': numberOfResults,
+                'overrideSearchType': "HYBRID", # optional
+            }
+        }
+    )
+
+query = "What was the total operating lease liabilities and total sublease income of the AnyCompany as of December 31, 2022?"
+response = retrieve(query, kb_id, 5)
+retrievalResults = response['retrievalResults']
+pp.pprint(retrievalResults)
+```
+
+### LangChain Integration
+
+```python
+import langchain
+from langchain_aws import ChatBedrock
+from langchain_community.retrievers import AmazonKnowledgeBasesRetriever
+llm = ChatBedrock(model_id=modelId, client=bedrock_client)
+
+query = "What was the total operating lease liabilities and total sublease income of the AnyCompany as of December 31, 2022?"
+
+retriever = AmazonKnowledgeBasesRetriever(
+    knowledge_base_id=kb_id,
+    retrieval_config={
+        "vectorSearchConfiguration": {
+            "numberOfResults": 4,
+            "overrideSearchType": "SEMANTIC",  # optional
+        }
+    },
+    # endpoint_url=endpoint_url,
+    # region_name=region,
+    # credentials_profile_name="<profile_name>",
+)
+docs = retriever.invoke(input=query)
+for doc in docs:
+    print(doc.page_content)
+    print("------")
+```
+### Use specific prompt to the model to get personalized responses
+
+```python
+from langchain.prompts import PromptTemplate
+
+PROMPT_TEMPLATE = """
+Human: You are a financial advisor AI system, and provides answers to questions by using fact based and statistical information when possible. 
+Use the following pieces of information to provide a concise answer to the question enclosed in <question> tags. 
+If you don't know the answer, just say that you don't know, don't try to make up an answer.
+<context>
+{context}
+</context>
+
+<question>
+{question}
+</question>
+
+The response should be specific and use statistics or numbers when possible.
+
+Assistant:"""
+
+nova_prompt = PromptTemplate(
+	template=PROMPT_TEMPLATE, input_variables=["context", "question"]
+)
+
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
+
+def format_docs(docs): #concatenate the text from the page_content field in the output from retriever.invoke
+    return "\n\n".join(doc.page_content for doc in docs)
+
+chain = (
+    {"context": retriever | format_docs, "question": RunnablePassthrough()}
+    | nova_prompt
+    | llm
+    | StrOutputParser()
+)
+
+response=chain.invoke(query)
+print(response))                  
+```
+### RAGAS
+
+```python
+import warnings
+import logging
+
+warnings.filterwarnings(
+    "ignore"
+)  # ignore warnings related to pydantic v1 to v2 migration
+logging.getLogger("root").setLevel(logging.CRITICAL)
+
+from datasets import Dataset
+
+if not hasattr(Dataset, "from_list"):
+
+    def from_list_compatibility(data_list):
+        if (
+            isinstance(data_list, list)
+            and len(data_list) > 0
+            and isinstance(data_list[0], dict)
+        ):
+            keys = data_list[0].keys()
+            data_dict = {key: [item[key] for item in data_list] for key in keys}
+            return Dataset.from_dict(data_dict)
+        return Dataset.from_dict({})
+
+    Dataset.from_list = staticmethod(from_list_compatibility)
+
+from ragas import evaluate
+from ragas.metrics import (
+    faithfulness,
+    answer_relevancy,
+    context_recall,
+    context_precision,
+    context_entity_recall,
+    answer_similarity,
+    answer_correctness,
+)
+
+from ragas.metrics.critique import (
+    harmfulness,
+    maliciousness,
+    coherence,
+    correctness,
+    conciseness,
+)
+
+# specify the metrics here
+metrics = [
+    faithfulness,
+    answer_relevancy,
+    context_precision,
+    context_recall,
+    context_entity_recall,
+    answer_similarity,
+    answer_correctness,
+    harmfulness,
+    maliciousness,
+    coherence,
+    correctness,
+    conciseness,
+]
+
+try:
+    result = evaluate(
+        dataset=dataset,
+        metrics=metrics,
+        llm=llm_for_evaluation,
+        embeddings=bedrock_embeddings,
+    )
+    df = result.to_pandas()
+except Exception as e:
+    # Handle any exceptions that occur during the evaluation
+    print(f"An error occurred: {e}")
+    
+import pandas as pd
+pd.options.display.max_colwidth = 10
+df.style.set_sticky(axis="columns")
+```
+### GuardRails
+
+> [!code]+
+> ```python
+> # Reset guardrail id and version
+> guardrailId=""
+> guardrailVersion=""
+> guardrailName="fiduciary-advice"
+> 
+> list_guardrails_response = client.list_guardrails(maxResults=10)
+> for guardrail_data in list_guardrails_response["guardrails"]:
+>     if guardrail_data["name"] == guardrailName:
+>         guardrailId=guardrail_data["id"]
+>         guardrailVersion=guardrail_data["version"]
+> 
+> if guardrailId == "":
+>     create_response = client.create_guardrail(
+>         name=guardrailName,
+>         description="Prevents the our model from providing fiduciary advice.",
+>         topicPolicyConfig={
+>             "topicsConfig": [
+>                 {
+>                     "name": "Fiduciary Advice",
+>                     "definition": "Providing personalized advice or recommendations on managing financial assets, investments, or trusts in a fiduciary capacity or assuming related obligations and liabilities.",
+>                     "examples": [
+>                         "What stocks should I invest in for my retirement?",
+>                         "Is it a good idea to put my money in a mutual fund?",
+>                         "How should I allocate my 401(k) investments?",
+>                         "What type of trust fund should I set up for my children?",
+>                         "Should I hire a financial advisor to manage my investments?",
+>                     ],
+>                     "type": "DENY",
+>                 }
+>             ]
+>         },
+>         contentPolicyConfig={
+>             "filtersConfig": [
+>                 {"type": "SEXUAL", "inputStrength": "HIGH", "outputStrength": "HIGH"},
+>                 {"type": "VIOLENCE", "inputStrength": "HIGH", "outputStrength": "HIGH"},
+>                 {"type": "HATE", "inputStrength": "HIGH", "outputStrength": "HIGH"},
+>                 {"type": "INSULTS", "inputStrength": "HIGH", "outputStrength": "HIGH"},
+>                 {"type": "MISCONDUCT", "inputStrength": "HIGH", "outputStrength": "HIGH"},
+>                 {"type": "PROMPT_ATTACK", "inputStrength": "HIGH", "outputStrength": "NONE"},
+>             ]
+>         },
+>         wordPolicyConfig={
+>             "wordsConfig": [
+>                 {"text": "fiduciary advice"},
+>                 {"text": "investment recommendations"},
+>                 {"text": "stock picks"},
+>                 {"text": "financial planning guidance"},
+>                 {"text": "portfolio allocation advice"},
+>                 {"text": "retirement fund suggestions"},
+>                 {"text": "wealth management tips"},
+>                 {"text": "trust fund setup"},
+>                 {"text": "investment strategy"},
+>                 {"text": "financial advisor recommendations"},
+>             ],
+>             "managedWordListsConfig": [{"type": "PROFANITY"}],
+>         },
+>         sensitiveInformationPolicyConfig={
+>             "piiEntitiesConfig": [
+>                 {"type": "EMAIL", "action": "ANONYMIZE"},
+>                 {"type": "PHONE", "action": "ANONYMIZE"},
+>                 {"type": "NAME", "action": "ANONYMIZE"},
+>                 {"type": "US_SOCIAL_SECURITY_NUMBER", "action": "BLOCK"},
+>                 {"type": "US_BANK_ACCOUNT_NUMBER", "action": "BLOCK"},
+>                 {"type": "CREDIT_DEBIT_CARD_NUMBER", "action": "BLOCK"},
+>             ],
+>             "regexesConfig": [{"name": "Account Number", "description": "Matches account numbers in the format XXXXXX1234", "pattern": r"\b\d{6}\d{4}\b", "action": "ANONYMIZE"}],
+>         },
+>         contextualGroundingPolicyConfig={"filtersConfig": [{"type": "GROUNDING", "threshold": 0.75}, {"type": "RELEVANCE", "threshold": 0.75}]},
+>         blockedInputMessaging="""I can provide general info about AnyCompany Financial's products and services, but can't fully address your request here. For personalized help or detailed questions, please contact our customer service team directly. For security reasons, avoid sharing sensitive information through this channel. If you have a general product question, feel free to ask without including personal details. """,
+>         blockedOutputsMessaging="""I can provide general info about AnyCompany Financial's products and services, but can't fully address your request here. For personalized help or detailed questions, please contact our customer service team directly. For security reasons, avoid sharing sensitive information through this channel. If you have a general product question, feel free to ask without including personal details. """,
+>         tags=[{"key": "purpose", "value": "fiduciary-advice-prevention"}, {"key": "environment", "value": "production"}],
+>     )
+> 
+>     guardrailId = create_response["guardrailId"]
+>     guardrailVersion = create_response["version"]
+>     print("Created new guardrail " + guardrailName)
+>     
+> retrieveAndGenerateConfiguration_with_guardrail={
+>         "type": "KNOWLEDGE_BASE",
+>         "knowledgeBaseConfiguration": {
+>             'knowledgeBaseId': kb_id,
+>             "modelArn": model_arn,
+>             "retrievalConfiguration": {
+>                 "vectorSearchConfiguration": {
+>                     "numberOfResults":3
+>                 }
+>             },
+>             "generationConfiguration": { 
+>                 "guardrailConfiguration": { 
+>                    "guardrailId": guardrailId,
+>                    "guardrailVersion": guardrailVersion
+>                 }
+>             }
+>         }
+>     }
+> 
+> retrieveAndGenerateConfiguration_no_guardrail={
+>         "type": "KNOWLEDGE_BASE",
+>         "knowledgeBaseConfiguration": {
+>             'knowledgeBaseId': kb_id,
+>             "modelArn": model_arn,
+>             "retrievalConfiguration": {
+>                 "vectorSearchConfiguration": {
+>                     "numberOfResults":3
+>                 } 
+>             },
+>  
+>         }
+>     }
+>     
+> def get_retrieve_and_generate_response(guarded=False):
+>     response = bedrock_agent_client.retrieve_and_generate(
+>         input={"text": query},
+>         retrieveAndGenerateConfiguration=
+>             (retrieveAndGenerateConfiguration_with_guardrail if guarded else retrieveAndGenerateConfiguration_no_guardrail)
+>     )
+>     return response
+> 
+> response=get_retrieve_and_generate_response(guarded=True)  # guarded=False
+> print(response['output']['text'],end='\n'*2)
+> ```
+# 6.  Implement Prompt Engineering Strategies and Governance
+
+## Episodic memory
+
+The new episodic memory feature available through Amazon Bedrock AgentCore can further enhance prompt management by preserving context across complex agent workflows. This enables more consistent reasoning behaviors and reduces the need for repeated context injection within prompts.
+
+Amazon Nova Forge enables organizations to build custom frontier models using Nova foundations. This capability supports prompt engineering scenarios where standard models don't meet specialized requirements.Nova Forge Use Cases:
+
+- **Domain-specific models**: Create models fine-tuned for industry terminology, specialized knowledge, or unique business processes
+- **Behavioral customization**: Develop models with specific response patterns, reasoning approaches, or output characteristics aligned with organizational standards
+- **Performance optimization**: Build models optimized for specific prompt patterns and use cases common in your applications
+
+Integration with foundation models involves connecting your prompt templates, guardrails, and response formatting with specific models to create complete instruction frameworks.
+
+![[bedrock_integrations.png]]
+
+You can build interactive AI systems by combining foundation models for natural language processing with orchestration services for workflow management and storage services for context persistence. This architecture supports sophisticated conversational experiences that adapt to user needs while maintaining business requirements.
+## Microservices
+
+![[bedrock_ai_engine.png]]
+
+1. Create integration patterns that work effectively with enterprise API architectures, microservices environments, and service-oriented architectures. Design API contracts that provide clear interfaces for foundation model capabilities while maintaining backward compatibility and versioning support.
+2. Implement microservices patterns that allow foundation model capabilities to be deployed, scaled, and managed independently while integrating seamlessly with existing service meshes, load balancers, and container orchestration platforms.
+3. Implement advanced reasoning capabilities as microservices that integrate with existing enterprise architectures through well-defined APIs and service contracts. Design services that can scale independently while maintaining consistent performance and reliability standards.
+4. Configure service mesh architectures that provide observability, security, and traffic management for foundation model services while supporting gradual rollout and A/B testing capabilities that minimize deployment risk.
+
+![[bedrock_control_points.png]]
+Gradually increase the percentage of traffic using the new template version over time while monitoring performance and quality metrics. Progressive rollout balances update speed with risk management.
+
+![[bedrock_deployment.png]]
+## CloudTrail Config
+
+```json
+{
+  "TrailName": "PromptManagementAudit",
+  "S3BucketName": "prompt-governance-audit-logs",
+  "IncludeGlobalServiceEvents": true,
+  "IsLogging": true,
+  "EnableLogFileValidation": true,
+  "EventSelectors": [
+    {
+      "ReadWriteType": "All",
+      "IncludeManagementEvents": true,
+      "DataResources": [
+        {
+          "Type": "AWS::Bedrock::PromptTemplate",
+          "Values": ["arn:aws:bedrock:*:*:prompt-template/*"]
+        }
+      ]
+    }
+  ]
+}
+```
+## Prompt Management
+
+Amazon Bedrock Prompt Management provides several integrated capabilities that work together to support enterprise prompt operations. Understanding these capabilities helps you design effective prompt management strategies for your organization.
+
+# 7.  Agentic AI Solutions and Tool Integrations
+
+## Strands Agent Framework
+
+Strands provides a unified interface that works with various foundation models while maintaining a focus on modularity and extensibility. The framework facilitates agentic tool calling through its Tools module, which enables agents to dynamically select and use appropriate tools based on the current context and requirements.
+
+![[aws_bedrock_strands.png]]
+```python
+from strands import Agent
+
+# Configure the agent with a specific prompting strategy
+outline_agent = Agent(
+    name="OutlineGenerator",
+    system_prompt="""Generate a comprehensive outline for {topic} that includes:
+    - Main sections (5-7)
+    - Key points for each section
+    - Logical flow between sections"""
+)
+
+# Generate the initial outline
+outline_response = outline_agent.generate(
+    messages=[{"role": "user", "content": "Create an outline for a technical guide on AWS Lambda"}]
+)
+
+outline = outline_response.message.content
+print(f"Generated Outline:\n{outline}")
+```
+
+Strands Agents provides three primary multi-agent patterns: Graph, Swarm, and Workflow. While all three patterns enable agent collaboration, they differ fundamentally in how execution paths are determined and controlled. Understanding these differences helps you select the pattern that best fits your use case.
+
+Graph pattern is ideal for business processes that require branching logic, loops, or explicit error handling.
+
+Unlike Graph, you don't define the execution path for Swarm. Instead, you provide a pool of specialized agents, and they decide among themselves who should handle each task. Agents share memory and context: this exemplifies emergent intelligence where the collective capabilities exceed what any single agent could achieve.
+
+Unlike Graph and Swarm, the Workflow pattern doesn't allow cycles and follows a completely deterministic execution path. Workflow pattern is ideal for repeatable, complex operations that require reliability and predictability.
+
+![[aws_bedrock_strands_orchestration.png]]
+
+|                                                                                                                                               |                                                                                                     |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| [Strands Agents: Orchestration using Graph](https://strandsagents.com/latest/documentation/docs/user-guide/concepts/multi-agent/graph/)       | Implement a deterministic directed graph based agent orchestration system                           |
+| [Strands Agents: Orchestration using Swarm](https://strandsagents.com/latest/documentation/docs/user-guide/concepts/multi-agent/swarm/)       | Implement orchestration system where multiple agents work together as a team to solve complex tasks |
+| [Strands Agents: Orchestration using Workflow](https://strandsagents.com/latest/documentation/docs/user-guide/concepts/multi-agent/workflow/) | Implement structured coordination of tasks across multiple AI agents                                |
+## Memory
+
+```python
+from strands.memory import ConversationMemory
+# Create memory to maintain context across sections
+content_memory = ConversationMemory(max_tokens=4000)
+
+# Configure content development agent with memory
+content_agent = Agent(
+    name="ContentDeveloper",
+    system_prompt="Develop detailed content for each section while maintaining consistency",
+    memory=content_memory
+)
+```
+
+## Evaluator
+
+```python
+from strands.evaluation import OutlineEvaluator
+
+# Define evaluation criteria
+evaluator = OutlineEvaluator(
+    criteria={
+        "completeness": "Outline covers all essential aspects of the topic",
+        "structure": "Sections follow a logical progression",
+        "depth": "Appropriate level of detail in subsections"
+    }
+)
+
+# Evaluate the outline
+evaluation_results = evaluator.evaluate(outline)
+
+# Check if the outline meets quality thresholds
+if evaluation_results.score < 0.8:
+    # Request improvements if needed
+    improvement_response = outline_agent.generate(
+        messages=[
+            {"role": "user", "content": f"Improve this outline: {outline}"},
+            {"role": "user", "content": f"Focus on these areas: {evaluation_results.feedback}"}
+        ]
+    )
+    outline = improvement_response.message.content
+```
+## Introduction to Model Context Protocol
+
+Model Context Protocol is a framework that facilitates interactions between agents and tools, providing structured approaches to managing context and state across different interactions. MCP addresses the challenges of maintaining coherent communication and state management in complex multi-agent environments.
+
+![[aws_bedrock_mcp.png]]
+
+The agent application initializes an MCP client and establishes a connection to one or more MCP servers. Each MCP server exposes a set of tools (functions) that the agent can discover and invoke. The connection uses a transport protocol (stdio, SSE, or streamable-http) to communicate with the server.
+## AgentCore
+
+Amazon Bedrock AgentCore is designed for production-ready agents, supporting any model and any agent framework. AgentCore addresses the challenges of moving agents from prototypes to scalable, secure, and observable production systems. Key features include a dedicated runtime, identity management, tool integration, memory management, observability, and built-in browser and code interpretation capabilities.
+# 8. Model Deployment Strategies
+
+AWS provides several deployment strategies to address the challenges of deploying generative AI models.
+
+- You can use AWS Lambda for on-demand, event-driven workloads that require low latency.
+- Amazon Bedrock offers provisioned throughput configurations for consistent performance in high-throughput scenarios. (Amazon Bedrock also supports on-demand inference)
+- Amazon SageMaker AI endpoints provide hybrid solutions that combine on-demand and provisioned capabilities for applications with varying workloads.
+
+Amazon Bedrock provisioned throughput provides consistent, predictable performance for high-throughput, steady-state workloads that require **guaranteed capacity** and minimal latency variation. This approach pre-allocates dedicated resources to maintain consistent performance characteristics.
+
+Amazon SageMaker AI endpoints provide hybrid solutions that combine **on-demand and provisioned capabilities**, offering flexible deployment options that adapt to varying workloads through intelligent auto-scaling and resource management.
+
+> [!attention] Considerations
+> Lambda functions provide cost efficiency for variable workloads through pay-per-use pricing but may become expensive for consistent high-volume usage.
+> 
+> Provisioned throughput offers predictable costs for steady-state workloads but requires payment for reserved capacity regardless of actual utilization.
+> 
+> SageMaker endpoints provide cost flexibility through auto-scaling but require careful configuration to avoid over-provisioning during low-usage periods.
+
+![[aws_bedrock_containerization.png]]
+
+Create an **Amazon ECS cluster** to host your containerized AI applications with appropriate compute resources and networking configuration. Create a Task Definition that specifies container configuration, resource requirements, and runtime parameters for your AI application. Register the Task Definition with ECS, making it available for service creation and deployment. Create an ECS Service that manages the desired number of running tasks and handles load balancing and health monitoring.
+
+AWS Fargate provides **serverless container processing** that eliminates the need for cluster management and infrastructure provisioning. Automatic scaling and resource allocation optimize cost and performance for variable AI workloads. Built-in security isolation and compliance features reduce operational overhead while maintaining security standards. Integration with other AWS services provides comprehensive monitoring, logging, and management capabilities.
+## AWS Lambda Functions for Timeout Mechanisms
+
+AWS Lambda functions provide built-in timeout capabilities that help you manage resource consumption and prevent functions from running indefinitely.
+
+For long-running tasks, implement **asynchronous processing patterns** where Lambda functions initiate tasks and use Amazon SQS or Amazon SNS to handle results. This approach prevents timeout issues although it maintains workflow continuity and system responsiveness.
+
+```python
+# Example: Implementing asynchronous processing with SQS
+import boto3
+import json
+import uuid
+
+sqs = boto3.client('sqs')
+lambda_client = boto3.client('lambda')
+
+def initiator_lambda_handler(event, context):
+    # This function initiates a long-running process
+    job_id = str(uuid.uuid4())
+
+    # Break the large task into smaller chunks
+    chunks = split_large_task(event['data'])
+
+    # Send each chunk to SQS for processing
+    queue_url = 'https://sqs.us-east-1.amazonaws.com/123456789012/ProcessingQueue'
+
+    for i, chunk in enumerate(chunks):
+        message = {
+            'job_id': job_id,
+            'chunk_id': i,
+            'total_chunks': len(chunks),
+            'data': chunk
+        }
+
+        # Send to SQS queue
+        sqs.send_message(
+            QueueUrl=queue_url,
+            MessageBody=json.dumps(message)
+        )
+
+    return {
+        'status': 'initiated',
+        'job_id': job_id,
+        'chunks_queued': len(chunks)
+    }
+# In a separate Lambda function triggered by SQS
+def worker_lambda_handler(event, context):
+    for record in event['Records']:
+        message = json.loads(record['body'])
+
+        # Process the chunk
+        result = process_chunk(message['data'])
+
+        # Store results in DynamoDB or S3
+        store_result(message['job_id'], message['chunk_id'], result)
+
+        # If this is the last chunk, trigger completion Lambda
+        if is_last_chunk(message['job_id'], message['chunk_id'], message['total_chunks']):
+            lambda_client.invoke(
+                FunctionName='completion-function',
+                InvocationType='Event',
+                Payload=json.dumps({'job_id': message['job_id']})
+            )
+```
+
+![[aws_bedrock_fincrime.png]]
+![[aws_bedrock_fincrime_golden_dataset.png]]
+# 9.  Enterprise Integration Architectures
+
+> More to come.
+# 10.  Foundation Model API Integrations
+
+> More to come.
+# 11. Implement Application Integration Patterns and Development Tools
+
+> More to come.
+# 12. Safe User Interactions with Generative AI Applications
+
+> More to come.
+# 13. Implement Data Security and Privacy Controls
+
+> More to come.
+# 14.  Implement AI Governance, Compliance, and Transparency
+
+> More to come.
+# 15. Implementing Cost Optimization and Resource Efficiency Strategies
+
+> More to come.
+# 16. Optimize Application Performance
+
+> More to come.
+# 17.  Implement Monitoring Systems
+
+> More to come.
+# 18. Troubleshoot Generative AI Applications
+
+> More to come.
+

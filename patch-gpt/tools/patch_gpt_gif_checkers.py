@@ -1,6 +1,4 @@
-"""
-PatchGPT + Patchwise Animation: Watch a Transformer hallucinate a checkerboard.
-"""
+"""Train PatchGPT on a checkerboard while rendering an animated GIF."""
 
 import io
 from pathlib import Path

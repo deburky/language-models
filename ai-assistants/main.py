@@ -1,4 +1,4 @@
-# main.py
+"""End-to-end loan underwriting demo with OpenAI assistants."""
 
 import time
 import requests
@@ -27,7 +27,7 @@ from src.utils import (
     delete_all_assistants_and_files,
 )
 
-# --- Setup ---
+# Setup
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -36,7 +36,7 @@ console = Console(highlight=False)
 client = OpenAI()
 runner = AssistantRunner(client)
 
-# --- Constants ---
+# Constants
 DATA_URL = "https://drive.google.com/file/d/1r6gGvL_s313ThGSU7ziZiuYr2G_yijaZ/view?usp=sharing"
 DATA_DIR = Path("data")
 REPORT_DIR = Path("report")
@@ -45,11 +45,12 @@ PARQUET_TRAIN = DATA_DIR / "loans-9309cbc146a4.parquet"
 PARQUET_TEST = DATA_DIR / "loans-new-9309cbc146a4.parquet"
 PARQUET_SCORES = DATA_DIR / "scores-new-9309cbc146a4.parquet"
 
-# --- Step Functions ---
+# Step Functions
 
 
 def fetch_and_prepare_data():
-    logger.info("📥 Downloading and preparing loan data...")
+    """Download loan data, split train/test, and write parquet files."""
+    logger.info("Downloading and preparing loan data...")
     file_id = DATA_URL.split("/")[-2]
     response = requests.get(f"https://drive.google.com/uc?id={file_id}")
     full_data = pacsv.read_csv(BytesIO(response.content)).to_pandas()
@@ -77,7 +78,8 @@ def fetch_and_prepare_data():
 
 
 def train_model(train_df):
-    logger.info("🤖 Training credit model...")
+    """Train a CatBoost classifier and return the model with feature names."""
+    logger.info("Training credit model...")
     X = train_df.drop(columns=["Loan_Status", "Loan_ID"])
     y = train_df["Loan_Status"]
     cat_features = make_column_selector(dtype_include="object")(X)
@@ -105,12 +107,13 @@ def train_model(train_df):
     train_gini = gini(roc_auc_score(y_train, model.predict_proba(X_train)[:, 1]))
     val_gini = gini(roc_auc_score(y_val, model.predict_proba(X_val)[:, 1]))
 
-    logger.info(f"✅ Train Gini: {train_gini:.4f}, Validation Gini: {val_gini:.4f}")
+    logger.info(f"Train Gini: {train_gini:.4f}, Validation Gini: {val_gini:.4f}")
     return model, list(X.columns)
 
 
 def score_test_set(model, features, test_df):
-    logger.info("📊 Scoring test dataset...")
+    """Score the test frame and persist a credit score column to parquet."""
+    logger.info("Scoring test dataset...")
     test_df["Score"] = model.predict_proba(test_df[features])[:, 0]
     test_df["Credit_Score"] = -test_df["Score"].apply(lambda x: 350 * logit(x - 0.5))
     test_df.drop(columns=["Score"], inplace=True)
@@ -120,7 +123,8 @@ def score_test_set(model, features, test_df):
 
 
 def run_assistants(train_parquet, test_parquet, scores_parquet):
-    logger.info("🤝 Uploading files and running assistants...")
+    """Upload CSVs to assistants and run the underwriting conversation steps."""
+    logger.info("Uploading files and running assistants...")
 
     train_file = client.files.create(
         file=("train.csv", pyarrow_to_csv_buffer(pq.read_table(train_parquet))),
@@ -157,9 +161,9 @@ def run_assistants(train_parquet, test_parquet, scores_parquet):
 
     thread = client.beta.threads.create()
     steps = [
-        ("📝 Step 1: Underwriter Intro", underwriter.id, "Briefly introduce yourself."),
-        ("📝 Step 2: Decision Maker Intro", decision_maker.id, "Introduce yourself."),
-        ("📝 Step 3: Final Decision", decision_maker.id, "Review report and return a CSV with Loan_ID and Loan_Status"),
+        ("Step 1: Underwriter Intro", underwriter.id, "Briefly introduce yourself."),
+        ("Step 2: Decision Maker Intro", decision_maker.id, "Introduce yourself."),
+        ("Step 3: Final Decision", decision_maker.id, "Review report and return a CSV with Loan_ID and Loan_Status"),
     ]
 
     with Live(console=console, refresh_per_second=1) as live:
@@ -175,7 +179,7 @@ def run_assistants(train_parquet, test_parquet, scores_parquet):
                     break
                 time.sleep(2)
 
-    console.print("\n[bold green]✅ Assistant workflow complete.[/bold green]")
+    console.print("\n[bold green]Assistant workflow complete.[/bold green]")
     record_console = Console(record=True)
     record_console.print(fetch_messages(client, thread.id))
     REPORT_DIR.mkdir(exist_ok=True, parents=True)
@@ -183,14 +187,15 @@ def run_assistants(train_parquet, test_parquet, scores_parquet):
 
 
 def evaluate_assistant_output(test_labels_df):
-    logger.info("📈 Evaluating assistant predictions...")
+    """Compare assistant CSV output to held-out labels and print metrics."""
+    logger.info("Evaluating assistant predictions...")
 
     files = client.files.list()
     file_info = [(file.id, file.filename) for file in files.data]
     df_files = pd.DataFrame(file_info, columns=["File ID", "Filename"])
     
     # Show files in df_files
-    logger.info(f"📝 Files in df_files:\n{df_files}")
+    logger.info(f"Files in df_files:\n{df_files}")
 
     output_file_id = df_files[df_files["Filename"].str.endswith(".csv")].iloc[0]["File ID"]
     content = client.files.retrieve_content(output_file_id)
@@ -211,28 +216,29 @@ def evaluate_assistant_output(test_labels_df):
         normalize="all"
     )
 
-    console.print("\n[bold]📊 Confusion Matrix (Assistant vs. Truth)[/bold]")
+    console.print("\n[bold]Confusion Matrix (Assistant vs. Truth)[/bold]")
     console.print(decision_matrix)
 
-    console.print("\n[bold]📈 Approval Rates[/bold]")
+    console.print("\n[bold]Approval Rates[/bold]")
     console.print("Assistant approval rate:", round(df_eval["Loan_Status_Assistant"].mean(), 2))
     console.print("Historical approval rate:", round(df_eval["Loan_Status_Truth"].mean(), 2))
 
     match_rate = decision_matrix.get(1, {}).get(1, 0)
-    console.print(f"\n[bold]✅ Matched Approvals:[/bold] {round(match_rate * 100)}%")
+    console.print(f"\n[bold]Matched Approvals:[/bold] {round(match_rate * 100)}%")
 
     return df_eval
 
 
-# --- Entry Point ---
+# Entry Point
 
 def main():
+    """Run training, scoring, assistants, evaluation, and cleanup."""
     train_df, test_df, test_labels = fetch_and_prepare_data()
     model, features = train_model(train_df)
     score_test_set(model, features, test_df)
     run_assistants(PARQUET_TRAIN, PARQUET_TEST, PARQUET_SCORES)
     evaluate_assistant_output(test_labels)
-    logger.info("🧹 Cleaning up assistants and uploaded files...")
+    logger.info("Cleaning up assistants and uploaded files...")
     delete_all_assistants_and_files()
 
 

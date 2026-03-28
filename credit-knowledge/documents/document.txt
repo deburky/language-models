@@ -11,11 +11,11 @@ This deck contains a portfolio of materials about the use of machine learning mo
 
 ## Designing AI Underwriters
 
-The integration of AI into modern loan underwriting is set to reshape how institutions approach credit decisioning. As borrower profiles evolve and regulatory expectations grow, traditional scoring models — including those based on transactional mining patterns — remain essential, but often fall short when addressing edge cases and adapting in real time.
+The integration of AI into modern loan underwriting is set to reshape how institutions approach credit decisioning. As borrower profiles evolve and regulatory expectations grow, traditional scoring models - including those based on transactional mining patterns - remain essential, but often fall short when addressing edge cases and adapting in real time.
 
 With the advent of large language models (LLMs), financial institutions can now deploy multi-agent AI systems, where each agent specializes in a specific task. One may extract key financial data from applications, another align decisions with policy or regulatory frameworks, and a third one gives final recommendations. Throughout this process, a human underwriter remains in the loop by providing oversight.
 
-Not only does this collaborative framework accelerate decision-making, but it also improves consistency, transparency, and adaptability across the underwriting pipeline — as illustrated in the diagram below.
+Not only does this collaborative framework accelerate decision-making, but it also improves consistency, transparency, and adaptability across the underwriting pipeline - as illustrated in the diagram below.
 
 ![Simplified decision tree used by AI Underwriters to assess applications based on risk thresholds.](images/underwriting/underwriting_decision_tree.png)
 
@@ -26,7 +26,7 @@ Not only does this collaborative framework accelerate decision-making, but it al
 
 ### AI Underwriter Assistants
 
-Before AI underwriting systems can operate effectively, they must be trained — just like human underwriters. Human expertise develops through reviewing past cases and gaining hands-on experience before making independent decisions. Similarly, AI-based underwriting assistants require structured onboarding, typically delivered through prompt-based instructions, after which they begin to learn decision-making patterns from historical data aligned with real-world lending policies. Over time, these agents can refine their logic, improve accuracy, and operate within established compliance frameworks.
+Before AI underwriting systems can operate effectively, they must be trained - just like human underwriters. Human expertise develops through reviewing past cases and gaining hands-on experience before making independent decisions. Similarly, AI-based underwriting assistants require structured onboarding, typically delivered through prompt-based instructions, after which they begin to learn decision-making patterns from historical data aligned with real-world lending policies. Over time, these agents can refine their logic, improve accuracy, and operate within established compliance frameworks.
 
 OpenAI's Assistants API allows users to create AI-powered underwriting systems capable of handling multiple risk assessment tasks simultaneously. Previously, coordinating multiple OpenAI Assistants to collaborate on a task was difficult. However, last year’s improvements in the Assistants API, along with the introduction of the Agents SDK, have opened new possibilities for building more modular, intelligent, and context-aware systems.
 
@@ -34,8 +34,8 @@ In our workflow, we leverage the Assistants API specifically for nuanced, narrat
 
 In this example, we use two AI underwriting assistants:
 
-- **Underwriter** – Analyzes past loan applications and prepares key financial insights.  
-- **Decision Maker** – Uses these insights, along with credit scores from a scoring model, to make final approval decisions.
+- **Underwriter** - Analyzes past loan applications and prepares key financial insights.  
+- **Decision Maker** - Uses these insights, along with credit scores from a scoring model, to make final approval decisions.
 
 ### Dataset Overview
 
@@ -85,13 +85,13 @@ These results indicate that the assistant aligns closely with historical pattern
 
 As financial institutions confront growing complexity in credit decisioning, AI-enabled, human-in-the-loop underwriting frameworks are emerging as a compelling path forward. By embedding large language models within a multi-agent workflow, institutions can automate repetitive evaluations while preserving expert input for complex, high-stakes cases.
 
-AI agents can extract data, align with policy rules, and distill risk insights into compact, review-ready packages — enabling faster, more consistent decisions. While the technology continues to evolve, its integration offers a unique opportunity to reduce operational burden, increase transparency, and ensure careful assessment of edge cases.
+AI agents can extract data, align with policy rules, and distill risk insights into compact, review-ready packages - enabling faster, more consistent decisions. While the technology continues to evolve, its integration offers a unique opportunity to reduce operational burden, increase transparency, and ensure careful assessment of edge cases.
 
 ---
 
 ### References
 
-James Wilson and Paul R. Daugherty. *The Secret to Successful AI-Driven Process Redesign.* Harvard Business Review, January–February 2025.
+James Wilson and Paul R. Daugherty. *The Secret to Successful AI-Driven Process Redesign.* Harvard Business Review, January-February 2025.
 
 ---
 
@@ -522,7 +522,7 @@ The need for reliable scoring models is also highlighted by regulation and model
 In his lecture [Machine Learning for Retail Credit Risk for NVIDIA](https://www.nvidia.com/en-us/on-demand/session/gtcspring21-s31327/), Paul Edwards presented a well-known accuracy-explainability diagram that specifically addressed the intricacies of the credit risk use-case:
 
 ![Image](images/boosting/boosting_01.png)
-> Image caption: Adapted from "Machine Learning in Retail Credit Risk: Algorithms, Infrastructure, and Alternative Data — Past, Present, and Future" - NVIDIA
+> Image caption: Adapted from "Machine Learning in Retail Credit Risk: Algorithms, Infrastructure, and Alternative Data - Past, Present, and Future" - NVIDIA
 
 As a challenger approach to WOE LR, Scotiabank's ML team proposed a boosting technique for credit scorecard development. Such models, as was demonstrated in the presentation, have the same positive properties of a linear model, yet are based on a more advanced tree-based estimation which yields substantial gains in scoring accuracy.
 
@@ -793,7 +793,7 @@ Notwithstanding tech innovation achieved in recent decades, today’s digital ba
 
 <b>Lending products</b>, on the other hand, carry greater monetization potential. Building a strong collection of deposits and offering effective loan options is key to creating a profitable bank.
 
-> But loans aren't just products – they're instruments for consumers to achieve their dreams such as buying a first home or preparing for a big life event. Loans enable future wishes to become possible right now.
+> But loans aren't just products - they're instruments for consumers to achieve their dreams such as buying a first home or preparing for a big life event. Loans enable future wishes to become possible right now.
 
 Looking at recent history one can notice that profitable digital banks started to become successful more quickly over time. In the early 2000s, it took about 46 months for digital banks to start making money, but [banks founded after 2014 took only about 25 months on average to become profitable](https://www.spglobal.com/marketintelligence/en/news-insights/research/strong-interest-income-tips-the-scale-for-digital-banks-in-europe-asia), and most of the profit comes from the net interest income earned on loans.
 
@@ -805,7 +805,7 @@ Given these resonating success stories (which to a large extent are examples of 
 
 > Ok. But if everything is very straightforward and the business model has been around for decades, why is lending hard?
 
-Unfortunately, [lending is not (and probably will never be) be easy to unlock](https://workweek.com/2023/03/02/unlocking-lending-innovation/). According to many industry surveys and stories from lenders researched, there are no shortcuts to mastery in this domain, and many small things need to be done well – just as in manufacturing.
+Unfortunately, [lending is not (and probably will never be) be easy to unlock](https://workweek.com/2023/03/02/unlocking-lending-innovation/). According to many industry surveys and stories from lenders researched, there are no shortcuts to mastery in this domain, and many small things need to be done well - just as in manufacturing.
 
 There is an interesting [Upstart podcast](https://info.upstart.com/tony-hejna-ep-90) about this. Tony Hejna from KeyBank talks about a Fintech division that worked separately from a bank: this division had its own IT, underwriting, and collections teams who together navigated through fraud and evolution over the course of 10 years. The takeaway for the new owner was something like: "We want the results that they’re having but we don’t really appreciate what it took to build an infrastructure over 10 years to get there".
 

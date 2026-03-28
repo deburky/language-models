@@ -72,7 +72,7 @@ for path in tqdm(file_paths, desc="Embedding files"):
     embedded_data.extend(data)  # In case data is chunked into multiple pieces
 
 # 6. Store embeddings
-print("🧠 Inserting into vector database...")
+print("Inserting into vector database...")
 for idx, item in enumerate(embedded_data):
     collection.add(
         documents=[item.text],
@@ -86,4 +86,4 @@ for idx, item in enumerate(embedded_data):
         ids=[f"doc-{idx}"],
     )
 
-print(f"✅ Indexed {len(embedded_data)} code chunks!")
+print(f"Indexed {len(embedded_data)} code chunks!")

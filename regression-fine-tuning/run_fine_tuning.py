@@ -1,8 +1,9 @@
-"""run_fine_tuning.py"""
+"""Fine-tune MiniLM for price regression under multiple layer-freeze settings."""
 
 import json
 import os
 import time
+from functools import partial
 
 import numpy as np
 import pandas as pd
@@ -47,9 +48,9 @@ logger.add(
 )
 
 
-def load_data(data_path: str) -> pd.DataFrame:
+def load_data(data_path: str) -> tuple[pd.DataFrame, Pipeline]:
     """Load the dataset and preprocess it."""
-    logger.info("📂 Loading data...")
+    logger.info("Loading data...")
     df = pd.read_parquet(data_path).sample(100)
     df = df[~df["item_name"].isna()].copy()
     df["asin_value_usd"] = df["asin_value_usd"].astype(float)
@@ -65,7 +66,7 @@ def load_data(data_path: str) -> pd.DataFrame:
         df["asin_value_usd"].values.reshape(-1, 1)
     )
 
-    logger.success("✅ Data loaded and preprocessed successfully!")
+    logger.success("Data loaded and preprocessed successfully!")
     return df, price_pipeline
 
 
@@ -73,22 +74,22 @@ def load_or_download_model():
     """Load MiniLM model from disk or download it."""
     base_model_dir = "models/base_model"
     if not os.path.exists(base_model_dir):
-        logger.info("📥 Downloading & saving base MiniLM model...")
+        logger.info("Downloading & saving base MiniLM model...")
         model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
         tokenizer = AutoTokenizer.from_pretrained(
             "sentence-transformers/all-MiniLM-L6-v2"
         )
         model.save(base_model_dir)
         tokenizer.save_pretrained(base_model_dir)
-        logger.success(f"✅ Base MiniLM model saved to `{base_model_dir}`")
+        logger.success(f"Base MiniLM model saved to `{base_model_dir}`")
     else:
-        logger.success(f"✅ Loading Base Model from `{base_model_dir}`...")
+        logger.success(f"Loading Base Model from `{base_model_dir}`...")
         model = SentenceTransformer(base_model_dir)
         tokenizer = AutoTokenizer.from_pretrained(base_model_dir)
     return model, tokenizer
 
 
-def prepare_dataset(dataframe: pd.DataFrame, tokenizer) -> tuple:
+def prepare_dataset(dataframe: pd.DataFrame, tokenizer) -> tuple[Dataset, Dataset]:
     """Prepare dataset for fine-tuning."""
     df = dataframe[["item_name", "asin_value_usd_norm"]]
     dataset = Dataset.from_pandas(df)
@@ -127,7 +128,13 @@ def freeze_above_n_layers(model, n: int):
 
 
 def count_trainable_parameters(model):
+    """Return trainable parameter count rounded to the nearest integer."""
     return round(sum(p.numel() for p in model.parameters() if p.requires_grad), 0)
+
+
+def _identity_model(model: AutoModelForSequenceClassification):
+    """Leave all weights trainable (full fine-tuning)."""
+    return model
 
 
 def set_random_seed(seed: int, device: str):
@@ -165,7 +172,7 @@ def fine_tune(
     epochs: int = typer.Option(3, help="Number of training epochs"),
     learning_rate: float = typer.Option(5e-5, help="Learning rate"),
     device: str = typer.Option("mps", help="Training device (cpu, cuda, mps)"),
-    freeze_layers: int = typer.Option(
+    freeze_layers: int | None = typer.Option(
         None,
         help="Specify which layer to start training from. Freezes all below this layer.",
     ),
@@ -176,14 +183,14 @@ def fine_tune(
     seed: int = typer.Option(0, help="Random seed for reproducibility"),
 ):
     """Run fine-tuning experiments with flexible layer freezing."""
-    logger.info(f"🌎 Starting fine-tuning process with seed {seed}...")
+    logger.info(f"Starting fine-tuning process with seed {seed}...")
     set_random_seed(seed, device)
     start_time = time.perf_counter()
 
     dataframe, price_pipeline = load_data(data_path)
     model, tokenizer = load_or_download_model()
 
-    logger.info("📥 Generating embeddings...")
+    logger.info("Generating embeddings...")
     dataframe["embedding"] = dataframe["item_name"].apply(
         lambda text: model.encode(text)
     )
@@ -206,13 +213,11 @@ def fine_tune(
 
     # Add full fine-tuning if enabled
     if full:
-        fine_tuning_scenarios["full_finetuning"] = lambda model: model
+        fine_tuning_scenarios["full_finetuning"] = _identity_model
 
     # Add classification head only if enabled
     if clf_only:
-        fine_tuning_scenarios["classification_head_only"] = (
-            lambda model: freeze_all_but_classifier(model)
-        )
+        fine_tuning_scenarios["classification_head_only"] = freeze_all_but_classifier
 
     # If a layer freeze is specified, add scenarios for all layers from that point onward
     if freeze_layers is not None:
@@ -223,12 +228,12 @@ def fine_tune(
             return
 
         for layer in range(freeze_layers, num_layers + 1):  # Includes the last layer
-            fine_tuning_scenarios[f"train_from_layer_{layer}"] = (
-                lambda model, layer=layer: freeze_above_n_layers(model, layer)
+            fine_tuning_scenarios[f"train_from_layer_{layer}"] = partial(
+                freeze_above_n_layers, n=layer
             )
 
     for scenario_name, scenario_function in fine_tuning_scenarios.items():
-        logger.info(f"🪛 Running fine-tuning with {scenario_name}")
+        logger.info(f"Running fine-tuning with {scenario_name}")
 
         model_ft = AutoModelForSequenceClassification.from_pretrained(
             "models/base_model", num_labels=1
@@ -286,7 +291,7 @@ def fine_tune(
         )
 
     logger.success(
-        f"🧪 Fine-tuning completed in {time.perf_counter() - start_time:.2f} seconds!"
+        f"Fine-tuning completed in {time.perf_counter() - start_time:.2f} seconds!"
     )
 
     # Save results to json

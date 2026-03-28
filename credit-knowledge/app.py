@@ -1,14 +1,11 @@
-# app.py
+"""FastAPI app exposing RAG similarity search and LangServe routes."""
 
 import uvicorn
 
 from langserve import add_routes
-from langchain.prompts import ChatPromptTemplate
-from langchain.schema.output_parser import StrOutputParser
-from langchain_community.chat_models import ChatOpenAI
 
 from rag_chain import build_rag_chain
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel
 
@@ -24,12 +21,15 @@ app = FastAPI(
 )
 
 
-# Set response model
 class QueryRequest(BaseModel):
+    """Body for the similarity-search endpoint."""
+
     query: str
 
 
 class QueryResponse(BaseModel):
+    """Structured answer plus the context string shown to the model."""
+
     query: str
     answer: str
     context_used: str
@@ -43,9 +43,13 @@ async def similarity_search(request: QueryRequest) -> QueryResponse:
         docs = retrieve_docs(query)
         context = "\n\n".join([doc.page_content for doc in docs])
         answer = generate_response(query, context)
-        return {"query": query, "answer": answer, "context_used": context}
+        return QueryResponse(
+            query=query,
+            answer=answer,
+            context_used=context,
+        )
     except Exception as e:
-        return ORJSONResponse(content={"error": str(e)}, status_code=500)
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # LangServe RAG chain

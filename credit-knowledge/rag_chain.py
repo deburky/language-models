@@ -1,4 +1,4 @@
-# rag_chain.py
+"""LangChain RAG chain backed by SQLiteVSS and OpenAI chat."""
 
 import os
 import json
@@ -59,7 +59,7 @@ def retrieve_docs(query: str):
     db = get_vector_db()
     results = db.similarity_search(query, k=3)
 
-    print(f"\n🔍 [RAG CHAIN] Retrieved {len(results)} docs for query: '{query}'")
+    print(f"\n[RAG CHAIN] Retrieved {len(results)} docs for query: '{query}'")
 
     for doc in results:
         if isinstance(doc.metadata, str):
@@ -71,6 +71,7 @@ def retrieve_docs(query: str):
 
 
 def build_rag_chain():
+    """Compose retrieve-format-generate steps into a single LangChain runnable."""
     retriever = RunnableLambda(
         lambda query: {"query": query, "docs": retrieve_docs(query)}
     )

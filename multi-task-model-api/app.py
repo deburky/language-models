@@ -1,6 +1,5 @@
-"""app.py."""
+"""FastAPI service combining DistilBERT QA, DistilGPT-2 generation, and DuckDB."""
 
-import os
 import uvicorn
 import duckdb
 import numpy as np
@@ -8,13 +7,14 @@ from filelock import FileLock
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from transformers import pipeline, GenerationConfig
-from sklearn.metrics.pairwise import cosine_similarity
 
 # Create FastAPI application
 app = FastAPI(title="Multi-Task Model API")
 
 
 class ModelConfig(BaseModel):
+    """Hugging Face IDs for locally cached QA and text-generation models."""
+
     qa_model_name: str
     tg_model_name: str
 
@@ -35,8 +35,8 @@ GEN_CONFIG = GenerationConfig(
     repetition_penalty=2.0,
 )
 
-# Function to load the models
 def load_models_from_config(model_config: ModelConfig):
+    """Create QA and text-generation pipelines from disk paths."""
     # Initialize QA pipeline
     qa_pipeline = pipeline(
         "question-answering",
@@ -67,12 +67,13 @@ embedding_pipeline = pipeline(
 
 
 def generate_embeddings(text: str):
+    """Mean-pool token embeddings from the DistilBERT feature pipeline."""
     embeddings = embedding_pipeline(text)
     return np.mean(embeddings[0], axis=0)
 
 
-# Function to get most similar context based on embeddings from DuckDB
 def get_most_similar_context(query: str):
+    """Return the closest stored passage by embedding distance in DuckDB."""
     query_embedding = generate_embeddings(query).tolist()
 
     with duckdb.connect("db/embeddings.db") as con:
@@ -87,8 +88,8 @@ def get_most_similar_context(query: str):
     return result[0] if result else ""
 
 
-# Function to insert new embeddings into DuckDB
 def insert_embedding(text: str, embedding: np.ndarray):
+    """Insert one text row and its vector under a file lock."""
     lock = FileLock("db/embeddings.lock")  # Lock the DB for writing
     with lock:
         with duckdb.connect("db/embeddings.db") as con:
@@ -98,17 +99,21 @@ def insert_embedding(text: str, embedding: np.ndarray):
             )
 
 
-# Question Answering Endpoint
 class QARequest(BaseModel):
+    """POST body for the `/qa` endpoint."""
+
     question: str
 
 
 class QAResponse(BaseModel):
+    """Answer span returned by the QA pipeline."""
+
     answer: str
 
 
 @app.post("/qa", response_model=QAResponse)
 def answer_question(request: QARequest):
+    """Answer a question using retrieved DuckDB context and DistilBERT QA."""
     try:
         # Find the most similar context from DuckDB
         context = get_most_similar_context(request.question)
@@ -124,17 +129,21 @@ def answer_question(request: QARequest):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-# Text Generation Endpoint
 class GenerationRequest(BaseModel):
+    """POST body for the `/generate` endpoint."""
+
     prompt: str
 
 
 class GenerationResponse(BaseModel):
+    """Single continuation string from the text-generation pipeline."""
+
     generated_text: str
 
 
 @app.post("/generate", response_model=GenerationResponse)
 def generate_text(request: GenerationRequest):
+    """Sample text from DistilGPT-2 with the shared generation config."""
     try:
         # Generate text with a maximum length of 50 tokens.
         result = tg_pipeline(
@@ -150,6 +159,7 @@ def generate_text(request: GenerationRequest):
 
 @app.get("/")
 def read_root():
+    """Return a short JSON welcome payload."""
     return {"message": "Welcome to the Multi-Task Model API!"}
 
 

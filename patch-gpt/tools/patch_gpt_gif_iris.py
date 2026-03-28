@@ -1,4 +1,4 @@
-"""patch_gpt.py: A simple transformer model for image generation with GIF output."""
+"""PatchGPT training on Iris images with GIF visualization of generations."""
 
 import io
 from pathlib import Path
@@ -53,18 +53,21 @@ class ImageFolderDataset(Dataset):
     """Custom dataset for loading images from a folder."""
 
     def __init__(self, root, transform=None):
+        """Store sorted image paths and optional transforms."""
         self.paths = sorted(
             [str(f) for f in Path(root).iterdir() if f.suffix.lower() in (".jpg", ".png")]
         )
         self.transform = transform
 
     def __getitem__(self, idx):
+        """Load image ``idx`` and return a tensor plus a placeholder label."""
         img = Image.open(self.paths[idx]).convert("RGB")
         if self.transform:
             img = self.transform(img)
         return img, 0
 
     def __len__(self):
+        """Return how many image files were indexed."""
         return len(self.paths)
 
 

@@ -1,15 +1,15 @@
-# 🐍 📝 Language Models
+# Language Models
 
-This repository is a collection of my experiments with small and large language models, covering fine-tuning, inference, embeddings, and deployment.
+This repository is a collection of experiments with small and large language models, covering fine-tuning, inference, embeddings, and deployment.
 
-## What you will find in this repo ⤵
+## Contents
 
-➜ Fine-tuning workflows for transformers (MiniLM, GPT-2, DistilGPT-2, etc.)  
-➜ Agentic workflows with OpenAI  
-➜ Model deployment (Flask, FastAPI) 
+- Fine-tuning workflows for transformers (MiniLM, GPT-2, DistilGPT-2, and similar)
+- Agentic workflows with OpenAI
+- Model deployment (Flask, FastAPI)
 
-## What's Coming 🔜
+## Planned work
 
-➜ Agentic workflows with small language models   
-➜ Instruction-based fine-tuning  
-➜ Model deployment (LangServe) 
+- Agentic workflows with small language models
+- Instruction-based fine-tuning
+- Model deployment (LangServe)

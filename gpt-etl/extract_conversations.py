@@ -16,13 +16,16 @@ def sanitize_filename(title):
 
 
 def extract_conversations(data_folder, search_title=None, conversation_id=None):
-    """Extract conversations from conversations.json and save as markdown files.
+    """Load ``conversations.json`` from disk and write each thread as a Markdown file.
+
+    Files are created under ``conversations/`` next to this script (created if missing).
 
     Args:
-        search_title (str, optional): If provided, only extract conversations with titles
-                                     containing this string (case-insensitive).
-        conversation_id (str, optional): If provided, only extract the conversation with
-                                        this specific ID.
+        data_folder (str): Directory containing ``conversations.json`` (export folder).
+        search_title (str, optional): Substring to match against conversation titles;
+            case-insensitive. Unused if ``conversation_id`` is set.
+        conversation_id (str, optional): Exact conversation ``id`` to extract. If set,
+            it takes precedence over ``search_title``.
     """
     # Define paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -198,21 +201,15 @@ def extract_from_titles_file(index=None, search_string=None):
 
 def print_usage():
     """Print usage instructions."""
-    print("Usage:")
-    print("  1. Extract all conversation titles:")
-    print("     python extract_titles.py")
-    print()
-    print("  2. Extract a specific conversation by title search:")
-    print('     python extract_conversations.py --title "Title Search String"')
-    print()
-    print("  3. Extract a specific conversation by ID:")
-    print('     python extract_conversations.py --id "conversation_id"')
-    print()
-    print("  4. Extract a conversation by index from titles file:")
-    print("     python extract_conversations.py --index 5")
-    print()
-    print("  5. Extract all conversations with titles containing a string:")
-    print('     python extract_conversations.py --search "ML"')
+    print(
+        "Usage:\n"
+        "- List titles: python extract_titles.py\n"
+        '- By title: python extract_conversations.py DATA_FOLDER --title "string"\n'
+        '- By id: python extract_conversations.py DATA_FOLDER --id "id"\n'
+        "- By titles-file index: python extract_conversations.py DATA_FOLDER --index 5\n"
+        '- Titles containing text: python extract_conversations.py DATA_FOLDER --search "ML"\n'
+        "(DATA_FOLDER = path to export with conversations.json)"
+    )
 
 
 if __name__ == "__main__":

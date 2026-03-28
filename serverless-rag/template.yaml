@@ -1,0 +1,184 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless RAG latency benchmark — DynamoDB vs Aurora pgvector
+
+Parameters:
+  AuroraEndpoint:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /serverless-rag/aurora-endpoint
+  ModelBucket:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /serverless-rag/model-bucket
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures:
+      - x86_64
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        DYNAMODB_TABLE: !Ref VectorsTable
+        AURORA_ENDPOINT: !Ref AuroraEndpoint
+        AURORA_DB_NAME: postgres
+        AURORA_DB_USER: postgres
+        MODEL_BUCKET: !Ref ModelBucket
+        MODEL_PREFIX: models/minilm
+        LLM_PREFIX: models/qwen
+
+Resources:
+
+  # DynamoDB vector store
+  VectorsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TableName: !Sub "${AWS::StackName}-vectors"
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: document_chunk
+          AttributeType: S
+        - AttributeName: document_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+        - AttributeName: document_chunk
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: user-document-index
+          KeySchema:
+            - AttributeName: user_id
+              KeyType: HASH
+            - AttributeName: document_id
+              KeyType: RANGE
+          Projection:
+            ProjectionType: KEYS_ONLY
+
+  # Lambda functions
+  IngestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: ingest.handler.lambda_handler
+      Timeout: 300
+      MemorySize: 512
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref VectorsTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub "arn:aws:s3:::${ModelBucket}/models/minilm/*"
+            - Effect: Allow
+              Action: rds-db:connect
+              Resource: !Sub "arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:*/postgres"
+            - Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AWS::StackName}-IngestFunction*"
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /ingest
+            Method: POST
+            ApiId: !Ref HttpApi
+
+  QueryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: query.handler.lambda_handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref VectorsTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub "arn:aws:s3:::${ModelBucket}/models/minilm/*"
+            - Effect: Allow
+              Action: rds-db:connect
+              Resource: !Sub "arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:*/postgres"
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /query
+            Method: GET
+            ApiId: !Ref HttpApi
+
+  BenchmarkFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: benchmark.handler.lambda_handler
+      Timeout: 60
+      MemorySize: 512
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref VectorsTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub "arn:aws:s3:::${ModelBucket}/models/minilm/*"
+            - Effect: Allow
+              Action: rds-db:connect
+              Resource: !Sub "arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:*/postgres"
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /benchmark
+            Method: GET
+            ApiId: !Ref HttpApi
+
+  AnswerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: answer.handler.lambda_handler
+      Timeout: 120
+      MemorySize: 3008
+      EphemeralStorage:
+        Size: 1024
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref VectorsTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub "arn:aws:s3:::${ModelBucket}/models/*"
+            - Effect: Allow
+              Action: rds-db:connect
+              Resource: !Sub "arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:*/postgres"
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /answer
+            Method: GET
+            ApiId: !Ref HttpApi
+
+  # API Gateway
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: prod
+
+Outputs:
+  ApiUrl:
+    Description: API endpoint
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
+  VectorsTableName:
+    Description: DynamoDB table name
+    Value: !Ref VectorsTable

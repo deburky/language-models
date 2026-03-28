@@ -16,7 +16,7 @@ model = EmbeddingModel.from_pretrained_hf(
 
 def search_chroma_db(query, top_k=5):
     """Search the Chroma DB collection for the top_k most similar documents to the query."""
-    print(f"🔍 Searching for: {query}")
+    print(f"Searching for: {query}")
     query_embedding = model.embed_query([query])[0].embedding
     results = collection.query(
         query_embeddings=[query_embedding],

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""
-Setup script for Brand Extractor
-Installs dependencies and downloads required models
+"""Set up the brand extractor environment.
+
+Installs Python dependencies and downloads the spaCy English model.
 """
 
 import subprocess
@@ -9,26 +9,26 @@ from pathlib import Path
 
 
 def run_command(command, description):
-    """Run a command and handle errors"""
-    print(f"🔄 {description}...")
+    """Run a shell command and print success or stderr on failure."""
+    print(f"{description}...")
     try:
         _ = subprocess.run(
             command, shell=True, check=True, capture_output=True, text=True
         )
-        print(f"✅ {description} completed")
+        print(f"{description} completed")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"❌ {description} failed: {e}")
+        print(f"{description} failed: {e}")
         print(f"Error output: {e.stderr}")
         return False
 
 
 def main():
-    """Main setup function"""
+    """Create folders, install requirements, and download the spaCy model."""
     print("=== Brand Extractor Setup ===")
 
     # Create necessary directories
-    print("📁 Creating directories...")
+    print("Creating directories...")
     Path("data").mkdir(exist_ok=True)
     Path("models").mkdir(exist_ok=True)
     Path("scripts").mkdir(exist_ok=True)
@@ -38,7 +38,7 @@ def main():
         "pip install -r requirements.txt", "Installing Python dependencies"
     ):
         print(
-            "❌ Failed to install dependencies. Please check your Python environment."
+            "Failed to install dependencies. Please check your Python environment."
         )
         return False
 
@@ -47,15 +47,15 @@ def main():
         "python -m spacy download en_core_web_sm", "Downloading spaCy English model"
     ):
         print(
-            "⚠️  Failed to download spaCy model. You can still use pattern-based extraction."
+            "Failed to download spaCy model. You can still use pattern-based extraction."
         )
 
-    print("\n🎉 Setup completed successfully!")
-    print("\n📋 Next steps:")
+    print("\nSetup completed successfully!")
+    print("\nNext steps:")
     print("1. Place your CSV file in the 'data' directory")
     print("2. Update the CSV_IN path in scripts/brand_extractor.py if needed")
     print("3. Run: python scripts/brand_extractor.py")
-    print("\n📚 For more information, see README.md")
+    print("\nFor more information, see README.md")
 
 
 if __name__ == "__main__":

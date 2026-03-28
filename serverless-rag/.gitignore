@@ -1,0 +1,17 @@
+# SAM build artifacts
+.aws-sam/
+
+# Local env (contains live endpoints and credentials)
+local/env_variables.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Model cache
+/tmp/
+
+# macOS
+.DS_Store

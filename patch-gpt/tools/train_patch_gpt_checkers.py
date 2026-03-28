@@ -1,6 +1,6 @@
-"""
-This script trains a simple PatchGPT model on a synthetic dataset.
-It is a functioning autoregressive image model from scratch that learns coherent structure.
+"""Train a PatchGPT model on a synthetic checkerboard dataset.
+
+This script is a minimal autoregressive image model that learns local structure.
 """
 
 import matplotlib.pyplot as plt
@@ -30,8 +30,9 @@ def generate_checkerboard(batch_size=16, img_size=32):
 
 
 def patchify(img, patch_size):
-    """Convert an image into patches.
-    B, C, H, W = batch size, channels, height, width
+    """Convert an image tensor into flattened patches.
+
+    Expects ``B, C, H, W`` shaped input (batch, channels, height, width).
     """
     B, C, _, _ = img.shape
     patches = img.unfold(2, patch_size, patch_size).unfold(3, patch_size, patch_size)
@@ -55,6 +56,7 @@ class PatchGPT(nn.Module):
     """A simple PatchGPT model using PyTorch."""
 
     def __init__(self, input_dim, seq_len, dim=128, heads=4, depth=4):
+        """Stack token embeddings, positional embeddings, and transformer layers."""
         super().__init__()
         self.token_embed = nn.Linear(input_dim, dim)
         self.pos_embed = nn.Parameter(torch.randn(1, seq_len, dim))

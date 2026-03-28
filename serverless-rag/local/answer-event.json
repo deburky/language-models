@@ -1,0 +1,8 @@
+{
+  "queryStringParameters": {
+    "backend": "aurora",
+    "user_id": "test",
+    "q": "What is the express configuration for Aurora?",
+    "k": "5"
+  }
+}

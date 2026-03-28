@@ -6,7 +6,7 @@ This is an**AI-powered API** that provides access to knowledge bases using **Ret
 
 We use **FastAPI, LangChain, SQLiteVSS**, and **sentence-transformer embeddings** to answer specific questions on the subject. The knowledge base consists of **LinkedIn articles on Credit Risk** written between **2022 and 2025**.
 
-**LangServe** (from LangChain) is meant to serve LangChain Chains, Tools, and Agents over HTTP APIs—especially using FastAPI. It provides automatic OpenAPI docs and neat integration paths for deployment.
+**LangServe** (from LangChain) is meant to serve LangChain Chains, Tools, and Agents over HTTP APIs, especially using FastAPI. It provides automatic OpenAPI docs and neat integration paths for deployment.
 
 ---
 ## 📦 Key Features

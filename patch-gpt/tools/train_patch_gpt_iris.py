@@ -1,11 +1,6 @@
-"""
-"patchwise poetry"
+"""Train PatchGPT on a local image folder (iris sample).
 
-PatchGPT: Autoregressive Image Generation from Real Images
-Training on local folder: ../images/iris/
-
-Comments:
-With depth of 1 the results are not good, but with depth of 2 the results are much better.
+Autoregressive patch modeling; depth-2 stacks typically outperform depth-1 runs.
 """
 
 from pathlib import Path
@@ -65,18 +60,21 @@ class ImageFolderDataset(Dataset):
     """Custom dataset for loading images from a folder."""
 
     def __init__(self, root, transform=None):
+        """Store sorted image paths and optional transforms."""
         self.paths = sorted(
             [str(f) for f in Path(root).iterdir() if f.suffix.lower() in (".jpg", ".png")]
         )
         self.transform = transform
 
     def __getitem__(self, idx):
+        """Load image ``idx`` and return a tensor plus a placeholder label."""
         img = Image.open(self.paths[idx]).convert("RGB")
         if self.transform:
             img = self.transform(img)
         return img, 0  # dummy label
 
     def __len__(self):
+        """Return how many image files were indexed."""
         return len(self.paths)
 
 
@@ -96,6 +94,7 @@ class PatchGPT(nn.Module):
     """A simple PatchGPT model using PyTorch."""
 
     def __init__(self, input_dim, seq_len, dim=N_DIMS, heads=N_HEADS, depth=DEPTH):
+        """Configure embeddings and a stack of transformer encoder layers."""
         super().__init__()
         self.token_embed = nn.Linear(input_dim, dim)
         self.pos_embed = nn.Parameter(torch.randn(1, seq_len, dim))

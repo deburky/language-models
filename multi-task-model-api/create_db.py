@@ -1,4 +1,4 @@
-"""create_db.py."""
+"""Populate DuckDB with DistilBERT embeddings for lines from a text file."""
 
 import duckdb
 import os
@@ -30,20 +30,22 @@ con.execute(
 """
 )
 
-# Function to generate embeddings using the pipeline
 def generate_embeddings(text):
+    """Mean-pool last hidden states into one 768-d vector."""
     # Use the pipeline to extract the embeddings
     embeddings = embedding_pipeline(text)
     # Take the mean of the embeddings
     return np.mean(embeddings[0], axis=0)
 
 
-# Pydantic model to validate each line
 class TextLine(BaseModel):
+    """One non-empty line of source text with basic word-count rules."""
+
     text: str
 
     @field_validator("text")
     def validate_text(cls, value):
+        """Strip, reject empty lines, and require at least two words."""
         stripped_value = value.strip()
         if not stripped_value:
             raise ValueError("Line cannot be empty.")
@@ -52,8 +54,8 @@ class TextLine(BaseModel):
         return stripped_value
 
 
-# Generator function to track and yield a sequential index
 def index_generator(start=0):
+    """Yield increasing integers starting at ``start`` (inclusive)."""
     index = start
     while True:
         yield index

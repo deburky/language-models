@@ -1,3 +1,5 @@
+"""Fine-tune GPT-2 with a small classification head on food reviews."""
+
 import pprint
 import time
 
@@ -15,7 +17,7 @@ from sklearn.model_selection import train_test_split
 from transformers import AutoModel, AutoTokenizer, Trainer, TrainingArguments
 from transformers.modeling_outputs import SequenceClassifierOutput
 
-# --- Model --- #
+# Model
 
 # Load GPT-2 model and tokenizer
 model_name = "gpt2"
@@ -28,7 +30,10 @@ gpt2_model = AutoModel.from_pretrained(model_name)
 
 # Properly define GPT-2 classification model
 class GPT2ForClassification(nn.Module):
+    """Sequence classifier using GPT-2 hidden states and a linear head."""
+
     def __init__(self, gpt2_model, num_labels=2):
+        """Attach a classifier head to the given GPT-2 base model."""
         super(GPT2ForClassification, self).__init__()
         self.gpt2 = gpt2_model
         self.config = gpt2_model.config
@@ -38,6 +43,7 @@ class GPT2ForClassification(nn.Module):
         self.loss_fn = nn.CrossEntropyLoss()
 
     def forward(self, input_ids, attention_mask=None, labels=None):
+        """Run GPT-2, pool the last token, and optionally compute CE loss."""
         outputs = self.gpt2(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -69,9 +75,9 @@ for param in model_gpt2.gpt2.h[-3:].parameters():
 for name, param in model_gpt2.named_parameters():
     if "classifier" in name:
         param.requires_grad = True  # Unfreeze last transformer block + classifier
-        print(f"{name} is trainable ✅")
+        print(f"{name} is trainable")
 
-# --- Dataset --- #
+# Dataset
 
 # Load dataset
 dataset_path = "data/fine_food_reviews_1k.parquet"
@@ -88,11 +94,12 @@ train_df, val_df = train_test_split(df, test_size=0.3, random_state=42)
 train_dataset = Dataset.from_pandas(train_df)
 val_dataset = Dataset.from_pandas(val_df)
 
-# --- Training --- #
+# Training
 
 
 # Tokenize for GPT-2 (Right padding for decoder models)
 def tokenize_function(examples):
+    """Tokenize raw review strings for the trainer."""
     return tokenizer(
         examples["text"], padding="max_length", truncation=True, max_length=120
     )
@@ -109,6 +116,7 @@ val_dataset.set_format(type="torch", columns=["input_ids", "attention_mask", "la
 
 # Define metric computation
 def compute_metrics(pred):
+    """Compute accuracy, precision, recall, F1, and Gini from logits."""
     logits, labels = pred
     probs = F.softmax(torch.tensor(logits), dim=1)[:, 1].numpy()
     preds = (probs >= 0.5).astype(int)

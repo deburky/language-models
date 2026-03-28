@@ -1,9 +1,11 @@
+"""Instruction-tune DistilGPT2 with TRL on a small Alpaca split."""
+
 import torch
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
 from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
 
-# ----- Data -----
+# Data
 
 # Load a very small dataset (only 100 examples)
 dataset = load_dataset("sahil2801/CodeAlpaca-20k", split="train[:100]")
@@ -12,7 +14,7 @@ dataset = dataset.train_test_split(test_size=0.1)
 train_dataset = dataset["train"]
 eval_dataset = dataset["test"]
 
-# ----- Model -----
+# Model
 
 # Use a very small model
 model_name = "distilgpt2"
@@ -26,6 +28,7 @@ model = AutoModelForCausalLM.from_pretrained(model_name).to("mps")
 
 # Format input correctly
 def formatting_prompts_func(example):
+    """Render one training example as instruction and response text."""
     return (
         f"### Instruction: {example['instruction']}\n### Response: {example['output']}"
     )
@@ -71,7 +74,7 @@ trainer.train()
 model.save_pretrained(training_args.output_dir)
 tokenizer.save_pretrained(training_args.output_dir)
 
-# ----- Evaluation -----
+# Evaluation
 
 def generate_response(instruction, max_length=512):
     """Generate a response using the fine-tuned model."""
@@ -93,7 +96,7 @@ def generate_response(instruction, max_length=512):
     return response.replace(input_text, "").strip()  # Remove input from output
 
 
-# ✅ Test the fine-tuned model
+# Test the fine-tuned model
 test_instruction = "Write a function for fibonacci in python."
 response = generate_response(test_instruction)
-print(f"🚀 Model Response:\n{response}")
+print(f"Model Response:\n{response}")

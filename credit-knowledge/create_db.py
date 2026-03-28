@@ -1,4 +1,4 @@
-"""create_db.py."""
+"""Build the SQLiteVSS database from `documents/document.txt`."""
 
 import os
 

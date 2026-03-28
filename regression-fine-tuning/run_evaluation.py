@@ -1,4 +1,4 @@
-"""run_evaluation.py"""
+"""Evaluate embedding scenarios with an XGBoost random forest regressor."""
 
 import os
 import time
@@ -45,7 +45,7 @@ logger.add(
 
 def load_data(data_path: str):
     """Load and preprocess the dataset."""
-    logger.info("📥 Loading data...")
+    logger.info("Loading data...")
     dataframe = pd.read_parquet(data_path).sample(n=100)
 
     dataframe = dataframe[~dataframe["item_name"].isna()].copy()
@@ -62,7 +62,7 @@ def load_data(data_path: str):
         dataframe["asin_value_usd"].values.reshape(-1, 1)
     )
 
-    logger.success("✅ Data loaded successfully!")
+    logger.success("Data loaded successfully!")
     return dataframe, price_pipeline
 
 
@@ -118,7 +118,7 @@ def evaluate(
     seed: int = typer.Option(0, help="Random seed for reproducibility"),
 ):
     """Run supervised evaluation on fine-tuned models using XGBoost."""
-    logger.info(f"🔁 Starting evaluation process with seed {seed}...")
+    logger.info(f"Starting evaluation process with seed {seed}...")
     set_random_seed(seed, device)
     start_time = time.perf_counter()
 
@@ -138,35 +138,29 @@ def evaluate(
     num_layers = len(base_model.bert.encoder.layer)
     logger.info(f"Base model has {num_layers} layers.")
 
-    # Define fine-tuned model paths dynamically
-    fine_tuning_scenarios = {
-        "original_embedding": None,  # No fine-tuning, use original embeddings
-        "full_finetuning": "models/full_finetuning",
-        "classification_head_only": "models/classification_head_only",
-    }
-
     # Get existing model directories
     existing_model_dirs = os.listdir("models")
 
     # Fetch and sort fine-tuned models automatically
+    layer_dirs = [
+        m
+        for m in existing_model_dirs
+        if re.fullmatch(r"train_from_layer_\d+", m)
+    ]
+
+    def layer_sort_key(name: str) -> int:
+        return int(name.rsplit("_", 1)[-1])
+
     fine_tuned_models = {
-        model: f"models/{model}"
-        for model in sorted(
-            (
-                m
-                for m in existing_model_dirs
-                if re.fullmatch(r"train_from_layer_\d+", m)
-            ),
-            key=lambda x: int(re.search(r"\d+", x).group()),
-        )
+        name: f"models/{name}" for name in sorted(layer_dirs, key=layer_sort_key)
     }
 
-    fine_tuning_scenarios = {
+    fine_tuning_scenarios: dict[str, str | None] = {
         "original_embedding": None,
         "full_finetuning": "models/full_finetuning",
         "classification_head_only": "models/classification_head_only",
-        **fine_tuned_models,  # Merge dynamically fetched models
-    } | fine_tuned_models
+    }
+    fine_tuning_scenarios.update(fine_tuned_models)
 
     # Load Fine-Tuned Models & Extract Embeddings
     available_models = {
@@ -177,11 +171,11 @@ def evaluate(
         step_start = time.perf_counter()
 
         if scenario_name == "original_embedding":
-            logger.info("📥 Using original embeddings for {}", scenario_name)
+            logger.info("Using original embeddings for {}", scenario_name)
             dataframe[f"embedding_{scenario_name}"] = list(dataframe["embedding"])
             continue
 
-        logger.info("📥 Extracting embeddings for {}", scenario_name)
+        logger.info("Extracting embeddings for {}", scenario_name)
         embeddings = get_embeddings(
             dataframe["item_name"].tolist(),
             model_path,
@@ -197,7 +191,7 @@ def evaluate(
         )
 
     # Train & Evaluate XGBoost for Regression
-    logger.info("🧩 Training & evaluating supervised regression models...")
+    logger.info("Training & evaluating supervised regression models...")
     results = []
 
     for scenario_name in available_models:
@@ -230,10 +224,10 @@ def evaluate(
         )
 
     total_time = time.perf_counter() - start_time
-    logger.success("🧪 Evaluation completed in {:.2f} seconds!", total_time)
+    logger.success("Evaluation completed in {:.2f} seconds!", total_time)
 
     # Display results in a rich table
-    table = Table(title="🌳 XGBoost Random Forest Regression Results")
+    table = Table(title="XGBoost Random Forest Regression Results")
     table.add_column("Scenario", style="cyan1", justify="left")
     table.add_column("RMSE", style="cyan1", justify="right")
     table.add_column("MAE", style="cyan1", justify="right")
