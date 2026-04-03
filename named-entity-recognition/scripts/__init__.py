@@ -1,1 +1,0 @@
-"""Brand extraction scripts package."""
