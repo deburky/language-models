@@ -1,0 +1,44 @@
+# gpt-oss-20b for Ollama — harmony format with Anthropic-style roles
+#
+# Pull GGUF directly from HuggingFace (no manual download needed).
+# Swap Q4_K_M for Q5_K_M or Q8_0 if you want higher quality.
+#
+# Usage:
+#   ollama create gpt-oss-20b -f Modelfile
+#   ollama run gpt-oss-20b
+
+FROM hf.co/unsloth/gpt-oss-20b-GGUF:Q4_K_M
+
+# Generation parameter
+PARAMETER stop          "<|return|>"
+PARAMETER num_ctx       32768
+PARAMETER temperature   1.0
+PARAMETER top_p         1.0
+
+# System prompt (harmony format)
+# The model was trained with a structured system block that sets identity,
+# knowledge cutoff, date, and reasoning effort. Replicate that here.
+SYSTEM """You are a helpful AI assistant trained by OpenAI.
+Knowledge cutoff: 2024-06
+Current date: 2025-01-01
+Reasoning: medium
+
+# Valid channels: analysis, commentary, final. Channel must be included for every message."""
+
+# Chat template (harmony format)
+# Maps standard user/assistant roles to the harmony special-token format.
+# The model generates its own <|channel|> prefix after <|start|>assistant,
+# so we only emit the role anchor as the generation prompt.
+#
+# Turn structure:
+#   <|start|>system<|message|>…<|end|>
+#   <|start|>user<|message|>…<|end|>
+#   <|start|>assistant<|channel|>final<|message|>…<|end|>   ← completed turns
+#   <|start|>assistant                                       ← generation prompt
+TEMPLATE """{{ if .System }}<|start|>system<|message|>{{ .System }}<|end|>
+{{ end }}
+{{- range .Messages }}
+{{- if eq .Role "user" }}<|start|>user<|message|>{{ .Content }}<|end|>
+{{- else if eq .Role "assistant" }}<|start|>assistant<|channel|>final<|message|>{{ .Content }}<|end|>
+{{- end }}
+{{- end }}<|start|>assistant"""

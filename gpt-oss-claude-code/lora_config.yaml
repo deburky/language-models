@@ -1,0 +1,31 @@
+model: mlx-community/gpt-oss-20b-MXFP4-Q4
+train: true
+data: ./data
+adapter_path: adapters
+# resume_adapter_file: adapters/0000200_adapters.safetensors
+
+seed: 0
+batch_size: 1
+iters: 200
+learning_rate: 1e-05
+weight_decay: 0.01
+steps_per_report: 10
+steps_per_eval: 50
+save_every: 50
+val_batches: 25
+max_seq_length: 2048
+grad_checkpoint: true
+
+lora_parameters:
+  rank: 8
+  scale: 20.0
+  dropout: 0.1
+  keys:  # Add all tunable layers 
+    - "self_attn.q_proj"
+    - "self_attn.k_proj"
+    - "self_attn.v_proj"
+    - "self_attn.o_proj"
+    - "mlp.router"
+    - "mlp.experts.gate_proj"
+    - "mlp.experts.up_proj"
+    - "mlp.experts.down_proj"
